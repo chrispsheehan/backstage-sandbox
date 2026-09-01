@@ -32,7 +32,14 @@ dev:
     set -euo pipefail
 
     cd {{ PROJECT_DIR }}
+    set -a
+    source {{ PROJECT_DIR }}/.env
+    set +a
 
+    # `just dev` serves the backend from source on :7007, so make sure a
+    # previous `just start` isn't still holding that port.
+    docker compose stop backstage >/dev/null 2>&1 || true
+    docker compose rm -f backstage >/dev/null 2>&1 || true
     docker compose up -d --wait postgres
 
     cd {{ PROJECT_DIR }}/{{ APP_DIR }}
