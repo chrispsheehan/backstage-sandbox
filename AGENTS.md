@@ -17,6 +17,7 @@ Read the nearest owning doc for the area you're touching before editing.
 | --- | --- |
 | Repo overview, setup, lab layout | `README.md` |
 | Backstage app and image build | `backstage/README.md` |
+| Repo-owned catalog data that overrides the scaffold's examples | `config/README.md` |
 | Cluster bootstrap order, Argo CD ownership | `k8s/README.md` |
 | Local Crossplane demo shape | `crossplane/README.md` |
 | Backstage scaffolding / default-file questions | [backstage.io getting-started docs](https://backstage.io/docs/getting-started/) |
@@ -36,7 +37,8 @@ capability areas just because they're nearby.
 **`backstage/` scaffold**
 - Treat `backstage/packages/` and `backstage/plugins/` as upgrade-sensitive generated code.
 - Don't edit them unless the user explicitly asks, or the change is a minimal backend registration line (e.g. `backend.add(...)`).
-- Before touching scaffold code, check whether the same behavior is achievable via the `backstage/app-config*.yaml` layers, `k8s/`, or root docs instead.
+- Before touching scaffold code, check whether the same behavior is achievable via the `backstage/app-config*.yaml` layers, `config/`, `k8s/`, or root docs instead.
+- Catalog example data lives in `config/examples/`, not `backstage/examples/`; `just install` regenerates a `backstage/examples/` alongside the scaffold, but it is unused.
 - Keep setup notes, deployment instructions, and runbooks out of the scaffold — put them in `README.md` or `backstage/README.md`.
 
 ## Design Principles

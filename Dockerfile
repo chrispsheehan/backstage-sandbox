@@ -85,7 +85,7 @@ RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid
 COPY --from=build --chown=node:node /app/packages/backend/dist/bundle/ ./
 COPY --from=build --chown=node:node /app/packages/app/dist ./packages/app/dist
 COPY --from=build --chown=node:node /app/app-config.yaml /app/app-config.compose.yaml ./
-COPY --chown=node:node backstage/examples ./examples
+COPY --chown=node:node config/examples ./examples
 
 EXPOSE 7007
 

@@ -22,6 +22,7 @@ Node 24 also works if you already have it on `PATH`.
 ## Repo Map
 
 - [backstage/README.md](backstage/README.md) explains the Backstage app and image build flow.
+- [config/README.md](config/README.md) explains how repo-owned catalog data overrides the scaffold's example data.
 - [k8s/README.md](k8s/README.md) explains the cluster bootstrap order, Argo CD ownership, and local access pattern.
 - [crossplane/README.md](crossplane/README.md) explains the local Crossplane demo shape and why it uses `provider-helm`.
 - `scripts/lab/` contains the bootstrap, publish, image-build, and reset commands.
