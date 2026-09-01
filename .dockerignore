@@ -1,0 +1,13 @@
+.git
+.lab
+node_modules
+backstage/.yarn/cache
+backstage/.yarn/install-state.gz
+backstage/node_modules
+backstage/dist-types
+backstage/packages/*/node_modules
+backstage/packages/*/dist
+backstage/plugins/*/node_modules
+backstage/plugins/*/dist
+backstage/*.local.yaml
+backstage/app-config.dev.yaml
