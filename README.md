@@ -3,8 +3,9 @@
 This repo implements a local-only platform lab built around four components:
 
 - `k3d` running a disposable single-node `k3s` cluster on Docker
-- Argo CD for deploying the in-cluster Backstage app
-- Backstage as the main UI and discovery layer
+- Argo CD for local GitOps experiments
+- Crossplane for later control-plane work
+- Backstage as the app we plan to wire into the lab next
 
 The design is intentionally ephemeral. Rebuilding from scratch is the normal workflow, not an exception.
 
@@ -20,8 +21,9 @@ Node 24 also works if you already have it on `PATH`.
 
 ## Repo Map
 
-- [backstage/README.md](backstage/README.md) explains the Backstage app and image build flow.
+- [backstage/README.md](backstage/README.md) explains the Backstage app and optional image build flow.
 - [config/README.md](config/README.md) explains how repo-owned catalog data overrides the scaffold's example data.
+- [crossplane/README.md](crossplane/README.md) explains the minimal Crossplane setup currently installed by bootstrap.
 - [k8s/README.md](k8s/README.md) explains the cluster bootstrap order, Argo CD ownership, and local access pattern.
 - `scripts/local/justfile` contains the local bootstrap, port-forward, image-build, and reset commands.
 
@@ -29,25 +31,24 @@ Node 24 also works if you already have it on `PATH`.
 
 - Use `k3d` instead of installing host-level `k3s` directly.
   `k3d` still runs real `k3s`, but keeps teardown trivial and only depends on Docker.
-- Install Argo CD and let it own the Backstage deployment only.
-- Point Argo CD at the repo's `origin` by default, with branch `main` unless overridden.
+- Install Argo CD for local GitOps experiments.
+- Install Crossplane core during bootstrap, but do not add providers or demo resources yet.
 - Use committed demo `Secret` objects with obvious local-only values to minimize friction. This is acceptable here because the environment is disposable and non-production.
 
 ## Backstage Dev Loop
 
-`just dev` and `just start` run Backstage against a PostgreSQL container. Both
-commands use guest auth, and both start by calling the shared
-`scripts/local/justfile` recipe `bootstrap`, which brings up the
-`k3d`/Argo CD lab (see [Quick Start](#quick-start)) so the local Backstage
-instance and the in-cluster one are backed by the same lab. Create `.env` from
-`.example.env` before running either.
+`just start` is the cluster path: it bootstraps `k3d`, Argo CD, and Crossplane.
+`just dev` is the local source
+path: it runs Postgres in Docker and serves Backstage from `backstage/` on
+`http://localhost:3000`. Create `.env` from `.example.env` before running
+`just dev`.
 
 ```bash
 just install  # scaffold backstage/ and install dependencies (run once)
-just dev      # Ensure the cluster is up, Postgres in Docker, Backstage from source on http://localhost:3000
-just start    # Ensure the cluster is up, Postgres in Docker, packaged Backstage image on http://localhost:7007
-just stop     # tear the stack down
-just clean    # tear down and drop the Postgres volume
+just dev      # Postgres in Docker, Backstage from source on http://localhost:3000
+just start    # Bootstrap k3d, Argo CD, and Crossplane
+just stop     # stop local Docker Compose and any tracked port-forwards
+just clean    # stop local Docker Compose, remove its data, and clean Yarn state
 ```
 
 `just install` runs `npx @backstage/create-app@latest`, which scaffolds the app
@@ -58,18 +59,16 @@ first if `yarn` isn't already on `PATH`, since `create-app` requires Yarn.
 and again after changing dependencies.
 
 `just dev` is the normal edit loop: it hot-reloads `backstage/` and layers
-`backstage/app-config.dev.yaml` over the base config. `just start` builds the
-release image from the root `Dockerfile` and layers
-`backstage/app-config.compose.yaml` instead, which is the closest local match to
-how the app runs in-cluster.
+`backstage/app-config.dev.yaml` over the base config. `just start` is currently
+infra-only; it does not deploy Backstage into the cluster yet.
 
-Prerequisites: Docker, `just`, `kubectl`, `k3d`, and Node 22 or 24 (for
-`just dev` and `just install` only) — see
+Prerequisites: Docker, `just`, `kubectl`, `helm`, `k3d`, and Node 22 or 24 (for
+`just dev`, `just install`, and optional image builds) — see
 [Install Prerequisites](#install-prerequisites-macos--homebrew).
 
 ## Quick Start
 
-Prerequisites: Docker, `kubectl`, `k3d` — see
+Prerequisites: Docker, `kubectl`, `helm`, `k3d` — see
 [Install Prerequisites](#install-prerequisites-macos--homebrew).
 
 Then run:
@@ -78,22 +77,18 @@ Then run:
 just --justfile scripts/local/justfile bootstrap
 ```
 
-That script will:
+That command will:
 
 1. Create the disposable `k3s` cluster with `k3d`.
-2. Build the Backstage image with a Node 24 container and import it into the cluster.
-3. Install Argo CD.
-4. Apply the Backstage Argo CD `Application`, pointed at `origin` and branch `main` by default.
+2. Install Argo CD.
+3. Install Crossplane core.
 
-After bootstrap completes:
+At the end of bootstrap, Argo CD is port-forwarded on:
 
-```bash
-just --justfile scripts/local/justfile port-forward
-```
+- `http://localhost:8080`
 
 Then open:
 
-- Backstage: `http://localhost:7007`
 - Argo CD: `http://localhost:8080`
 
 Argo CD login:
@@ -104,10 +99,10 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 
 Use username `admin` with that password.
 
-To sync a different branch, run with `ARGOCD_BRANCH=<branch>`.
-To point Argo CD at a different repo, run with `ARGOCD_REPO_URL=<repo-url>`.
-`bootstrap` also starts port-forwarding in the background and writes logs to
-`.lab/port-forward.log`; run `port-forward` yourself if you need to restart it.
+Crossplane does not expose a web UI in this setup by default.
+
+`build-backstage-image` is still available separately for later work, but
+`bootstrap` does not use it.
 
 ## Reset
 

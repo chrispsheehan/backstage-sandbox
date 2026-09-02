@@ -18,22 +18,17 @@ install:
     cd {{ PROJECT_DIR }}
     npx @backstage/create-app@latest
 
-# Build and run Postgres plus the packaged Backstage image on http://localhost:7007.
+# Bootstrap k3d, Argo CD, and Crossplane.
 start:
     #!/usr/bin/env bash
     set -euo pipefail
 
     just --justfile {{ PROJECT_DIR }}/scripts/local/justfile bootstrap
 
-    cd {{ PROJECT_DIR }}
-    docker compose up --build -d --wait postgres backstage
-
 # Run Postgres in Docker and Backstage from source on http://localhost:3000.
 dev:
     #!/usr/bin/env bash
     set -euo pipefail
-
-    just --justfile {{ PROJECT_DIR }}/scripts/local/justfile bootstrap
 
     cd {{ PROJECT_DIR }}
     set -a
@@ -58,12 +53,23 @@ dev:
       --config {{ PROJECT_DIR }}/{{ APP_DIR }}/app-config.dev.yaml
 
 stop:
-    cd {{ PROJECT_DIR }} && \
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    just --justfile {{ PROJECT_DIR }}/scripts/local/justfile stop-port-forward
+
+    cd {{ PROJECT_DIR }}
     docker compose down
 
 clean:
-    cd {{ PROJECT_DIR }} && \
-    docker compose down --volumes --remove-orphans && \
-    docker image prune -f && \
-    cd {{ PROJECT_DIR }}/{{ APP_DIR }} && \
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    just --justfile {{ PROJECT_DIR }}/scripts/local/justfile stop-port-forward
+
+    cd {{ PROJECT_DIR }}
+    docker compose down --volumes --remove-orphans
+    docker image prune -f
+
+    cd {{ PROJECT_DIR }}/{{ APP_DIR }}
     corepack yarn clean

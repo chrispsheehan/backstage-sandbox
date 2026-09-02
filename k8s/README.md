@@ -5,27 +5,25 @@ This repo uses a deliberately split ownership model:
 - Manual bootstrap:
   - `k3d` cluster creation
   - Argo CD install
-- Argo CD owned after bootstrap:
-  - Backstage namespace, service account, secrets, config, deployment, and service
+  - Crossplane core install
 
 ## Directory Shape
 
-- `bootstrap/argocd/`: local Argo overrides and the single Backstage `Application`.
+- `bootstrap/argocd/`: local Argo overrides and the future Backstage `Application`.
 - `base/backstage/`: raw Backstage stack manifests.
   The cluster-specific Backstage config is kept as
   `base/backstage/app-config.kubernetes.yaml` and packaged into a `ConfigMap`
   by that kustomization, rather than embedded inline in a manifest.
-- `overlays/local/`: local aggregators that Argo CD points at.
+- `overlays/local/`: local aggregators that Argo CD will point at when app deployment is wired back in.
 
 ## Bootstrap Order
 
 1. `just --justfile scripts/local/justfile bootstrap`
-2. Open the UIs on `http://localhost:7007` and `http://localhost:8080`.
+2. Open the Argo CD UI on `http://localhost:8080`.
 
-The bootstrap script creates the `k3d` cluster, installs Argo CD, and applies a
-single Backstage `Application` that points at `k8s/overlays/local/backstage`.
-By default it resolves the current repo's `origin` and branch `main`; override
-those with `ARGOCD_REPO_URL` and `ARGOCD_BRANCH` if needed.
+The bootstrap script creates the `k3d` cluster, installs Argo CD, and installs
+Crossplane core. It does not deploy the Backstage application into the cluster
+yet.
 
 ## Access Pattern
 
@@ -37,10 +35,8 @@ Use port-forwarding:
 just --justfile scripts/local/justfile port-forward
 ```
 
-Backstage is the main UI. Argo CD is only there to reconcile and inspect the
-Backstage application.
-`bootstrap` also starts port-forwarding in the background and writes logs to
-`.lab/port-forward.log`; run `port-forward` yourself if you need to restart it.
+Argo CD is there for GitOps inspection. Backstage is not deployed into the
+cluster yet.
 
 ## Secrets
 
