@@ -18,20 +18,14 @@ install:
     cd {{ PROJECT_DIR }}
     npx @backstage/create-app@latest
 
-# Run Backstage and Postgres in Docker Compose.
+# Bootstrap k3d, Argo CD, and Crossplane.
 start:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    cd {{ PROJECT_DIR }}
+    just --justfile {{ PROJECT_DIR }}/scripts/local/justfile bootstrap
 
-    set -a
-    source {{ PROJECT_DIR }}/.env
-    set +a
-
-    docker compose -f {{ PROJECT_DIR }}/compose.yml up --build -d postgres backstage
-
-# Bootstrap k3d, Argo CD, and Crossplane.
+# Alias for the explicit cluster bootstrap flow.
 bootstrap:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -48,8 +42,7 @@ dev:
     source {{ PROJECT_DIR }}/.env
     set +a
 
-    # `just dev` serves the backend from source on :7007, so make sure a
-    # previous `just start` isn't still holding that port.
+    # Ensure any previous Compose-based runtime is not still holding port 7007.
     docker compose stop backstage >/dev/null 2>&1 || true
     docker compose rm -f backstage >/dev/null 2>&1 || true
     docker compose up -d --wait postgres

@@ -49,5 +49,5 @@ capability areas just because they're nearby.
 ## Local Environment Assumptions
 
 - Full cluster workflow needs Docker, `k3d`, `kubectl`, `helm`.
-- `just start` also needs `k3d`, `kubectl`, and `helm`, since it calls the shared `scripts/local/justfile` recipe `bootstrap`; `just dev` only needs Docker plus a local Node 22 or 24 toolchain.
+- `just start` and `just bootstrap` need `k3d`, `kubectl`, and `helm`, since they call the shared `scripts/local/justfile` recipe `bootstrap`; `just dev` only needs Docker plus a local Node 22 or 24 toolchain.
 - If a task depends on the local Docker daemon and it isn't running, say so up front rather than guessing at output.
