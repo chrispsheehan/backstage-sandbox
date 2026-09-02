@@ -18,8 +18,21 @@ install:
     cd {{ PROJECT_DIR }}
     npx @backstage/create-app@latest
 
-# Bootstrap k3d, Argo CD, and Crossplane.
+# Run Backstage and Postgres in Docker Compose.
 start:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    cd {{ PROJECT_DIR }}
+
+    set -a
+    source {{ PROJECT_DIR }}/.env
+    set +a
+
+    docker compose -f {{ PROJECT_DIR }}/compose.yml up --build -d postgres backstage
+
+# Bootstrap k3d, Argo CD, and Crossplane.
+bootstrap:
     #!/usr/bin/env bash
     set -euo pipefail
 

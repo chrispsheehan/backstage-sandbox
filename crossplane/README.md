@@ -1,8 +1,9 @@
 # Crossplane
 
-Crossplane is installed by `scripts/local/justfile` recipe `bootstrap`, but it
-is not yet managed by Argo CD and there are no demo providers or managed
-resources in the default lab shape.
+Crossplane is installed by `just bootstrap` via the underlying
+`scripts/local/justfile` recipe `bootstrap`, but it is not yet managed by Argo
+CD and there are no demo providers or managed resources in the default lab
+shape.
 
 Current scope:
 

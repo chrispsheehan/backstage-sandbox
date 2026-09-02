@@ -37,16 +37,18 @@ Node 24 also works if you already have it on `PATH`.
 
 ## Backstage Dev Loop
 
-`just start` is the cluster path: it bootstraps `k3d`, Argo CD, and Crossplane.
-`just dev` is the local source
-path: it runs Postgres in Docker and serves Backstage from `backstage/` on
-`http://localhost:3000`. Create `.env` from `.example.env` before running
-`just dev`.
+`just start` is the simple local runtime path: it runs Postgres and Backstage in
+Docker Compose on `http://localhost:7007`. `just dev` is the local source path:
+it runs Postgres in Docker and serves Backstage from `backstage/` on
+`http://localhost:3000`. `just bootstrap` is the cluster path for `k3d`, Argo
+CD, and Crossplane. Create `.env` from `.example.env` before running `just
+start` or `just dev`.
 
 ```bash
 just install  # scaffold backstage/ and install dependencies (run once)
+just start    # Postgres + Backstage in Docker Compose on http://localhost:7007
 just dev      # Postgres in Docker, Backstage from source on http://localhost:3000
-just start    # Bootstrap k3d, Argo CD, and Crossplane
+just bootstrap # Bootstrap k3d, Argo CD, and Crossplane
 just stop     # stop local Docker Compose and any tracked port-forwards
 just clean    # stop local Docker Compose, remove its data, and clean Yarn state
 ```
@@ -59,8 +61,9 @@ first if `yarn` isn't already on `PATH`, since `create-app` requires Yarn.
 and again after changing dependencies.
 
 `just dev` is the normal edit loop: it hot-reloads `backstage/` and layers
-`backstage/app-config.dev.yaml` over the base config. `just start` is currently
-infra-only; it does not deploy Backstage into the cluster yet.
+`backstage/app-config.dev.yaml` over the base config. `just start` runs the
+containerized app from `compose.yml`. `just bootstrap` is still infra-only; it
+does not deploy Backstage into the cluster yet.
 
 Prerequisites: Docker, `just`, `kubectl`, `helm`, `k3d`, and Node 22 or 24 (for
 `just dev`, `just install`, and optional image builds) — see
@@ -74,7 +77,7 @@ Prerequisites: Docker, `kubectl`, `helm`, `k3d` — see
 Then run:
 
 ```bash
-just --justfile scripts/local/justfile bootstrap
+just bootstrap
 ```
 
 That command will:
@@ -102,7 +105,7 @@ Use username `admin` with that password.
 Crossplane does not expose a web UI in this setup by default.
 
 `build-backstage-image` is still available separately for later work, but
-`bootstrap` does not use it.
+`just bootstrap` does not use it.
 
 ## Reset
 
