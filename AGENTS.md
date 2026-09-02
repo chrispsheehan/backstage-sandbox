@@ -38,6 +38,7 @@ capability areas just because they're nearby.
 - Treat `backstage/packages/` and `backstage/plugins/` as upgrade-sensitive generated code.
 - Don't edit them unless the user explicitly asks, or the change is a minimal backend registration line (e.g. `backend.add(...)`).
 - Before touching scaffold code, check whether the same behavior is achievable via the `backstage/app-config*.yaml` layers, `config/`, `k8s/`, or root docs instead.
+- Any change made anywhere under `backstage/` must be called out in the final response and described clearly enough that another agent or human could replay it from those instructions.
 - Catalog example data lives in `config/examples/`, not `backstage/examples/`; `just install` regenerates a `backstage/examples/` alongside the scaffold, but it is unused.
 - Keep setup notes, deployment instructions, and runbooks out of the scaffold — put them in `README.md` or `backstage/README.md`.
 

@@ -58,12 +58,16 @@ into `backstage/` and installs its dependencies; only run it once, or when
 recreating the scaffold from scratch. It enables Corepack and activates Yarn
 first if `yarn` isn't already on `PATH`, since `create-app` requires Yarn.
 `just dev` does not install dependencies itself, so run `just install` first,
-and again after changing dependencies.
+and again after changing dependencies. If platform-specific optional packages
+are missing from `backstage/node_modules`, `just dev` will repair them with
+Yarn using a repo-local cache path.
 
 `just dev` is the normal edit loop: it hot-reloads `backstage/` and layers
-`backstage/app-config.dev.yaml` over the base config. `just start` and
-`just bootstrap` are infra-only; they do not deploy Backstage into the cluster
-yet.
+`backstage/app-config.dev.yaml` over the base config. When the local `k3d`
+context exists, `just dev` also starts a `kubectl proxy` so Backstage can show
+Argo CD and Crossplane resources from the local cluster in the Kubernetes tab.
+`just start` and `just bootstrap` are infra-only; they do not deploy Backstage
+into the cluster yet.
 
 Prerequisites: Docker, `just`, `kubectl`, `helm`, `k3d`, and Node 22 or 24 (for
 `just dev`, `just install`, and optional image builds) — see
