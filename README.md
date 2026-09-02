@@ -3,8 +3,7 @@
 This repo implements a local-only platform lab built around four components:
 
 - `k3d` running a disposable single-node `k3s` cluster on Docker
-- Argo CD for GitOps reconciliation inside that cluster
-- Crossplane for local control-plane demos
+- Argo CD for deploying the in-cluster Backstage app
 - Backstage as the main UI and discovery layer
 
 The design is intentionally ephemeral. Rebuilding from scratch is the normal workflow, not an exception.
@@ -13,7 +12,7 @@ The design is intentionally ephemeral. Rebuilding from scratch is the normal wor
 
 ```bash
 brew install --cask docker   # or `brew install colima docker docker-compose`
-brew install just kubectl helm k3d node@22
+brew install just kubectl k3d node@22
 ```
 
 `node@22` is keg-only, so `just install` adds it to `PATH` for you when present.
@@ -24,28 +23,29 @@ Node 24 also works if you already have it on `PATH`.
 - [backstage/README.md](backstage/README.md) explains the Backstage app and image build flow.
 - [config/README.md](config/README.md) explains how repo-owned catalog data overrides the scaffold's example data.
 - [k8s/README.md](k8s/README.md) explains the cluster bootstrap order, Argo CD ownership, and local access pattern.
-- [crossplane/README.md](crossplane/README.md) explains the local Crossplane demo shape and why it uses `provider-helm`.
-- `scripts/lab/` contains the bootstrap, publish, image-build, and reset commands.
+- `scripts/local/justfile` contains the local bootstrap, port-forward, image-build, and reset commands.
 
 ## Recommended Shape
 
 - Use `k3d` instead of installing host-level `k3s` directly.
   `k3d` still runs real `k3s`, but keeps teardown trivial and only depends on Docker.
-- Bootstrap a tiny in-cluster Git server once, because Argo CD needs a Git URL even for a local-only lab.
-- Install Argo CD and Crossplane core manually once per cluster rebuild.
-- Let Argo CD own Backstage, the demo workload, and the Crossplane demo resources.
+- Install Argo CD and let it own the Backstage deployment only.
+- Point Argo CD at the repo's `origin` by default, with branch `main` unless overridden.
 - Use committed demo `Secret` objects with obvious local-only values to minimize friction. This is acceptable here because the environment is disposable and non-production.
 
-## Backstage Without The Cluster
+## Backstage Dev Loop
 
-Before bringing up `k3d`, you can run Backstage on its own against a PostgreSQL
-container. Both commands use guest auth. Create `.env` from `.example.env` before
-running either.
+`just dev` and `just start` run Backstage against a PostgreSQL container. Both
+commands use guest auth, and both start by calling the shared
+`scripts/local/justfile` recipe `bootstrap`, which brings up the
+`k3d`/Argo CD lab (see [Quick Start](#quick-start)) so the local Backstage
+instance and the in-cluster one are backed by the same lab. Create `.env` from
+`.example.env` before running either.
 
 ```bash
 just install  # scaffold backstage/ and install dependencies (run once)
-just dev      # Postgres in Docker, Backstage from source on http://localhost:3000
-just start    # Postgres in Docker, packaged Backstage image on http://localhost:7007
+just dev      # Ensure the cluster is up, Postgres in Docker, Backstage from source on http://localhost:3000
+just start    # Ensure the cluster is up, Postgres in Docker, packaged Backstage image on http://localhost:7007
 just stop     # tear the stack down
 just clean    # tear down and drop the Postgres volume
 ```
@@ -63,35 +63,32 @@ release image from the root `Dockerfile` and layers
 `backstage/app-config.compose.yaml` instead, which is the closest local match to
 how the app runs in-cluster.
 
-Prerequisites: Docker, `just`, and Node 22 or 24 (for `just dev` and
-`just install` only) — see [Install Prerequisites](#install-prerequisites-macos--homebrew).
+Prerequisites: Docker, `just`, `kubectl`, `k3d`, and Node 22 or 24 (for
+`just dev` and `just install` only) — see
+[Install Prerequisites](#install-prerequisites-macos--homebrew).
 
 ## Quick Start
 
-Prerequisites: Docker, `kubectl`, `helm`, `k3d` — see
+Prerequisites: Docker, `kubectl`, `k3d` — see
 [Install Prerequisites](#install-prerequisites-macos--homebrew).
 
 Then run:
 
 ```bash
-./scripts/lab/bootstrap.sh
+just --justfile scripts/local/justfile bootstrap
 ```
 
 That script will:
 
-1. Create the local Git snapshot Argo CD will read from.
-2. Create the disposable `k3s` cluster with `k3d`.
-3. Build the Backstage image with a Node 24 container and import it into the cluster.
-4. Bootstrap the in-cluster Git server.
-5. Install Argo CD.
-6. Install Crossplane core.
-7. Apply the Argo CD root application.
+1. Create the disposable `k3s` cluster with `k3d`.
+2. Build the Backstage image with a Node 24 container and import it into the cluster.
+3. Install Argo CD.
+4. Apply the Backstage Argo CD `Application`, pointed at `origin` and branch `main` by default.
 
-When the cluster is up, use:
+After bootstrap completes:
 
 ```bash
-kubectl -n backstage port-forward svc/backstage 7007:7007
-kubectl -n argocd port-forward svc/argocd-server 8080:80
+just --justfile scripts/local/justfile port-forward
 ```
 
 Then open:
@@ -99,10 +96,23 @@ Then open:
 - Backstage: `http://localhost:7007`
 - Argo CD: `http://localhost:8080`
 
-## Reset
-
-To tear the entire lab down and remove the local Git snapshot:
+Argo CD login:
 
 ```bash
-./scripts/lab/reset.sh
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 --decode
+```
+
+Use username `admin` with that password.
+
+To sync a different branch, run with `ARGOCD_BRANCH=<branch>`.
+To point Argo CD at a different repo, run with `ARGOCD_REPO_URL=<repo-url>`.
+`bootstrap` also starts port-forwarding in the background and writes logs to
+`.lab/port-forward.log`; run `port-forward` yourself if you need to restart it.
+
+## Reset
+
+To tear the entire lab down and remove local lab state:
+
+```bash
+just --justfile scripts/local/justfile reset
 ```

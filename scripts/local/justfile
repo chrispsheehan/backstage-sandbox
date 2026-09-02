@@ -1,0 +1,132 @@
+PROJECT_DIR := justfile_directory() / "../.."
+CLUSTER_NAME := "platform-lab"
+LAB_ROOT := PROJECT_DIR / "/.lab"
+ARGOCD_BRANCH := env_var_or_default("ARGOCD_BRANCH", "main")
+ARGOCD_REPO_URL := env_var_or_default("ARGOCD_REPO_URL", "")
+PORT_FORWARD_LOG := LAB_ROOT / "/port-forward.log"
+
+default:
+    @just --justfile {{ justfile() }} --list
+
+port-forward:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    trap 'kill 0' EXIT INT TERM
+
+    kubectl -n backstage port-forward svc/backstage 7007:7007 &
+    kubectl -n argocd port-forward svc/argocd-server 8080:80 &
+
+    wait
+
+build-backstage-image:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    docker build \
+      --tag backstage-lab:dev \
+      --target backstage \
+      --file "{{ PROJECT_DIR }}/Dockerfile" \
+      "{{ PROJECT_DIR }}"
+
+    if command -v k3d >/dev/null 2>&1; then
+        if k3d cluster list | awk 'NR > 1 { print $1 }' | grep -qx '{{ CLUSTER_NAME }}'; then
+            k3d image import backstage-lab:dev -c {{ CLUSTER_NAME }} >/dev/null
+        fi
+    fi
+
+    echo "Built backstage-lab:dev"
+
+bootstrap:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    for bin in docker kubectl k3d git sed; do
+        command -v "${bin}" >/dev/null 2>&1 || {
+            echo "Missing required binary: ${bin}" >&2
+            exit 1
+        }
+    done
+
+    repo_url="{{ ARGOCD_REPO_URL }}"
+    if [[ -z "${repo_url}" ]]; then
+        repo_url="$(git -C "{{ PROJECT_DIR }}" config --get remote.origin.url || true)"
+    fi
+
+    if [[ -z "${repo_url}" ]]; then
+        echo "No Argo CD repo URL configured. Set ARGOCD_REPO_URL or configure git remote origin." >&2
+        exit 1
+    fi
+
+    case "${repo_url}" in
+        git@github.com:*)
+            repo_url="https://github.com/${repo_url#git@github.com:}"
+            ;;
+    esac
+
+    if ! k3d cluster list | awk 'NR > 1 { print $1 }' | grep -qx '{{ CLUSTER_NAME }}'; then
+        k3d cluster create {{ CLUSTER_NAME }} \
+          --servers 1 \
+          --agents 0 \
+          --wait \
+          --k3s-arg '--disable=traefik@server:0'
+    fi
+
+    just --justfile "{{ justfile() }}" build-backstage-image
+
+    kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+    kubectl apply -n argocd --server-side --force-conflicts \
+      -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.2/manifests/install.yaml
+    kubectl apply -f "{{ PROJECT_DIR }}/k8s/bootstrap/argocd/local-overrides.yaml"
+    kubectl -n argocd rollout status deployment/argocd-repo-server --timeout=300s
+    kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=300s
+    kubectl -n argocd rollout restart deployment/argocd-server
+    kubectl -n argocd rollout status deployment/argocd-server --timeout=300s
+
+    mkdir -p "{{ LAB_ROOT }}"
+    sed \
+      -e "s|__ARGOCD_REPO_URL__|${repo_url}|g" \
+      -e "s|__ARGOCD_BRANCH__|{{ ARGOCD_BRANCH }}|g" \
+      "{{ PROJECT_DIR }}/k8s/bootstrap/argocd/backstage-application.yaml" \
+      > "{{ LAB_ROOT }}/backstage-application.rendered.yaml"
+
+    kubectl apply -f "{{ LAB_ROOT }}/backstage-application.rendered.yaml"
+    kubectl -n backstage rollout status deployment/backstage --timeout=300s
+    kubectl -n backstage rollout status deployment/postgres --timeout=300s
+
+    nohup just --justfile "{{ justfile() }}" port-forward > "{{ PORT_FORWARD_LOG }}" 2>&1 </dev/null &
+
+ensure-cluster:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    for bin in docker kubectl k3d; do
+        command -v "${bin}" >/dev/null 2>&1 || {
+            echo "Missing required binary: ${bin}" >&2
+            echo "Full cluster workflow needs Docker, k3d, kubectl." >&2
+            exit 1
+        }
+    done
+
+    if k3d cluster list | awk 'NR > 1 { print $1 }' | grep -qx '{{ CLUSTER_NAME }}'; then
+        echo "k3s cluster '{{ CLUSTER_NAME }}' already up, checking Backstage..."
+        if kubectl -n backstage get deployment backstage >/dev/null 2>&1; then
+            kubectl -n backstage rollout status deployment/backstage --timeout=60s
+        else
+            echo "Backstage not deployed, running bootstrap..."
+            just --justfile "{{ justfile() }}" bootstrap
+        fi
+    else
+        echo "k3s cluster '{{ CLUSTER_NAME }}' not found, running full bootstrap..."
+        just --justfile "{{ justfile() }}" bootstrap
+    fi
+
+reset:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    k3d cluster delete {{ CLUSTER_NAME }} >/dev/null 2>&1 || true
+    docker image rm backstage-lab:dev >/dev/null 2>&1 || true
+    rm -rf "{{ LAB_ROOT }}"
+
+    echo "Removed cluster, local lab state, and local Backstage image."

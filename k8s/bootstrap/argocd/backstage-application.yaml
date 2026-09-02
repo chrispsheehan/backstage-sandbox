@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backstage
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # Bootstrap renders this template with the repo's origin URL by default, or
+    # ARGOCD_REPO_URL when set. GitHub SSH remotes are rewritten to HTTPS so a
+    # public repo can sync without adding SSH credentials to Argo CD.
+    repoURL: __ARGOCD_REPO_URL__
+    targetRevision: __ARGOCD_BRANCH__
+    path: k8s/overlays/local/backstage
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: backstage
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

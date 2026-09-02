@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage
+  namespace: backstage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage
+  template:
+    metadata:
+      labels:
+        app: backstage
+        backstage.io/kubernetes-id: backstage
+    spec:
+      serviceAccountName: backstage
+      containers:
+        - name: backstage
+          image: backstage-lab:dev
+          imagePullPolicy: IfNotPresent
+          command:
+            - node
+            - packages/backend
+            - --config
+            - app-config.yaml
+            - --config
+            - app-config.compose.yaml
+            - --config
+            - /config/app-config.kubernetes.yaml
+          ports:
+            - name: http
+              containerPort: 7007
+          envFrom:
+            - secretRef:
+                name: postgres-secrets
+            - secretRef:
+                name: backstage-secrets
+          env:
+            - name: APP_BASE_URL
+              value: http://localhost:7007
+            - name: POSTGRES_HOST
+              value: postgres.backstage.svc.cluster.local
+            - name: POSTGRES_PORT
+              value: "5432"
+          volumeMounts:
+            - name: runtime-config
+              mountPath: /config
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /.backstage/health/v1/readiness
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /.backstage/health/v1/liveness
+              port: http
+      volumes:
+        - name: runtime-config
+          configMap:
+            name: backstage-runtime-config

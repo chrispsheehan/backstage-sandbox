@@ -23,6 +23,8 @@ start:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    just --justfile {{ PROJECT_DIR }}/scripts/local/justfile bootstrap
+
     cd {{ PROJECT_DIR }}
     docker compose up --build -d --wait postgres backstage
 
@@ -30,6 +32,8 @@ start:
 dev:
     #!/usr/bin/env bash
     set -euo pipefail
+
+    just --justfile {{ PROJECT_DIR }}/scripts/local/justfile bootstrap
 
     cd {{ PROJECT_DIR }}
     set -a

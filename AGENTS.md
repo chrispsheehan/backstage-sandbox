@@ -4,7 +4,7 @@ These instructions apply to the entire repository.
 
 ## What This Repo Is
 
-A local-only platform lab: `k3d` + Argo CD + Crossplane + Backstage. It is
+A local-only platform lab: `k3d` + Argo CD + Backstage. It is
 intentionally ephemeral — rebuilding from scratch is the normal workflow, not
 an exception. See `README.md` for the full architecture and setup.
 
@@ -19,7 +19,6 @@ Read the nearest owning doc for the area you're touching before editing.
 | Backstage app and image build | `backstage/README.md` |
 | Repo-owned catalog data that overrides the scaffold's examples | `config/README.md` |
 | Cluster bootstrap order, Argo CD ownership | `k8s/README.md` |
-| Local Crossplane demo shape | `crossplane/README.md` |
 | Backstage scaffolding / default-file questions | [backstage.io getting-started docs](https://backstage.io/docs/getting-started/) |
 
 Loading order: `AGENTS.md` → `README.md` → the one nested README for the
@@ -48,6 +47,6 @@ capability areas just because they're nearby.
 
 ## Local Environment Assumptions
 
-- Full cluster workflow needs Docker, `k3d`, `kubectl`, `helm`.
-- Standalone Backstage workflow (`just install` / `just dev` / `just start`) needs Docker, plus a local Node 22 or 24 toolchain for `just install` and `just dev`.
+- Full cluster workflow needs Docker, `k3d`, `kubectl`.
+- `just dev` and `just start` also need `k3d` and `kubectl`, since both call the shared `scripts/local/justfile` recipe `bootstrap` first; add a local Node 22 or 24 toolchain for `just install` and `just dev`.
 - If a task depends on the local Docker daemon and it isn't running, say so up front rather than guessing at output.

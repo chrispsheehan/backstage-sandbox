@@ -7,6 +7,20 @@ metadata:
 spec:
   owner: guests
 ---
+# The Backstage app itself, deployed by Argo CD from k8s/base/backstage.
+# The kubernetes-id annotation matches the backstage.io/kubernetes-id label
+# on that Deployment, so the catalog's Kubernetes tab shows its live status.
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: backstage
+  annotations:
+    backstage.io/kubernetes-id: backstage
+spec:
+  type: website
+  lifecycle: production
+  owner: guests
+---
 # https://backstage.io/docs/features/software-catalog/descriptor-format#kind-component
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -17,25 +31,3 @@ spec:
   lifecycle: experimental
   owner: guests
   system: examples
-  providesApis: [example-grpc-api]
----
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-api
-apiVersion: backstage.io/v1alpha1
-kind: API
-metadata:
-  name: example-grpc-api
-spec:
-  type: grpc
-  lifecycle: experimental
-  owner: guests
-  system: examples
-  definition: |
-    syntax = "proto3";
-
-    service Exampler {
-      rpc Example (ExampleMessage) returns (ExampleMessage) {};
-    }
-
-    message ExampleMessage {
-      string example = 1;
-    };
