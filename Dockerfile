@@ -1,4 +1,4 @@
-# Builds the Backstage runtime image used by `just start`.
+# Builds the Backstage runtime image used by the in-cluster Backstage deployment.
 # Execute with the repository root as the docker context.
 
 # Stage 1 - Yarn install skeleton layer for dependency caching.
@@ -84,9 +84,9 @@ RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid
 
 COPY --from=build --chown=node:node /app/packages/backend/dist/bundle/ ./
 COPY --from=build --chown=node:node /app/packages/app/dist ./packages/app/dist
-COPY --from=build --chown=node:node /app/app-config.yaml /app/app-config.compose.yaml ./
+COPY --from=build --chown=node:node /app/app-config.yaml /app/app-config.production.yaml ./
 COPY --chown=node:node config/examples ./examples
 
 EXPOSE 7007
 
-CMD ["node", "packages/backend", "--config", "app-config.yaml", "--config", "app-config.compose.yaml"]
+CMD ["node", "packages/backend", "--config", "app-config.yaml", "--config", "app-config.production.yaml"]

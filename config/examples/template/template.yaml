@@ -17,6 +17,7 @@ spec:
       required:
         - name
         - bucketName
+        - repoUrl
       properties:
         name:
           title: App Folder Name
@@ -24,6 +25,20 @@ spec:
           description: Folder name to create under apps/
           ui:field: EntityNamePicker
           ui:autofocus: true
+        repoUrl:
+          title: Target Repository
+          type: string
+          description: Repository that will receive the generated app folder
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+            allowedOwners:
+              - chrispsheehan
+            allowedRepos:
+              - backstage-sandbox
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
         bucketName:
           title: S3 Bucket Name
           type: string
@@ -52,7 +67,8 @@ spec:
       name: Open Pull Request
       action: publish:github:pull-request
       input:
-        repoUrl: github.com?owner=chrispsheehan&repo=backstage-sandbox
+        repoUrl: ${{ parameters.repoUrl }}
+        token: ${{ secrets.USER_OAUTH_TOKEN }}
         branchName: scaffolder/s3-static-${{ parameters.name }}
         targetBranchName: main
         targetPath: apps/${{ parameters.name }}

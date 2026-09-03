@@ -17,8 +17,16 @@ backend:
       password: ${POSTGRES_PASSWORD}
 
 auth:
+  environment: production
   providers:
-    guest: {}
+    guest: null
+    github:
+      production:
+        clientId: ${AUTH_GITHUB_CLIENT_ID}
+        clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
+        signIn:
+          resolvers:
+            - resolver: usernameMatchingUserEntityName
 
 catalog:
   locations:
@@ -51,3 +59,15 @@ kubernetes:
             - group: argoproj.io
               apiVersion: v1alpha1
               plural: applications
+            - group: pkg.crossplane.io
+              apiVersion: v1
+              plural: providers
+            - group: pkg.crossplane.io
+              apiVersion: v1
+              plural: providerrevisions
+            - group: pkg.crossplane.io
+              apiVersion: v1
+              plural: configurations
+            - group: pkg.crossplane.io
+              apiVersion: v1
+              plural: configurationrevisions

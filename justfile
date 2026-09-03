@@ -2,9 +2,8 @@ PROJECT_DIR := justfile_directory()
 APP_DIR := "backstage"
 LAB_DIR := PROJECT_DIR / "/.lab"
 CLUSTER_NAME := "platform-lab"
-KUBECTL_PROXY_CONTEXT := "k3d-platform-lab"
-KUBECTL_PROXY_PORT := "8001"
-KUBECTL_PROXY_LOG := LAB_DIR / "/kubectl-proxy.log"
+ARGOCD_PORT_FORWARD_LOG := LAB_DIR / "/argocd-port-forward.log"
+BACKSTAGE_PORT_FORWARD_LOG := LAB_DIR / "/backstage-port-forward.log"
 
 default:
     @just --list
@@ -47,9 +46,22 @@ bootstrap-cluster:
     kubectl apply -n argocd --server-side --force-conflicts \
       -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.2/manifests/install.yaml
     kubectl apply -f "{{ PROJECT_DIR }}/k8s/bootstrap/argocd/local-overrides.yaml"
+    if [[ -f "{{ PROJECT_DIR }}/.env" ]]; then
+        set -a
+        source "{{ PROJECT_DIR }}/.env"
+        set +a
+    fi
+    if [[ -n "${AUTH_GITHUB_CLIENT_ID:-}" && -n "${AUTH_GITHUB_CLIENT_SECRET:-}" ]]; then
+        just argocd-github-auth
+    else
+        echo "AUTH_GITHUB_CLIENT_ID / AUTH_GITHUB_CLIENT_SECRET not set; skipping Argo CD GitHub SSO."
+    fi
     kubectl -n argocd rollout status deployment/argocd-repo-server --timeout=300s
     kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=300s
+    kubectl -n argocd rollout status deployment/argocd-dex-server --timeout=300s
     kubectl -n argocd rollout restart deployment/argocd-server
+    kubectl -n argocd rollout restart deployment/argocd-dex-server
+    kubectl -n argocd rollout status deployment/argocd-dex-server --timeout=300s
     kubectl -n argocd rollout status deployment/argocd-server --timeout=300s
 
     helm repo add crossplane-stable https://charts.crossplane.io/stable >/dev/null 2>&1 || true
@@ -63,80 +75,38 @@ bootstrap-cluster:
     kubectl apply -k "{{ PROJECT_DIR }}/crossplane/providers"
     kubectl wait --for=condition=Healthy provider/provider-family-aws --timeout=300s
 
-    just stop-port-forward
-    kubectl -n argocd port-forward svc/argocd-server 8080:80 &
+    just ensure-argocd-port-forward
 
-# Bootstrap the cluster, wire Crossplane to local AWS credentials, and start Backstage dev.
+# Bootstrap the cluster, wire local auth, deploy Backstage through Argo CD, and start port-forwards.
 start:
     #!/usr/bin/env bash
     set -euo pipefail
 
     just bootstrap-cluster
     just crossplane-aws-auth ~/.aws/credentials
-    just dev
+    just backstage-cluster-auth
+    just argocd-repo-auth
+    just build-backstage-image
+    just deploy-backstage
+    just ensure-argocd-port-forward
+    just ensure-backstage-port-forward
 
-# Run Postgres in Docker and Backstage from source on http://localhost:3000.
-dev:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    # node@22 is keg-only on Homebrew, so prefer it when available.
-    if command -v brew >/dev/null 2>&1 && brew --prefix node@22 >/dev/null 2>&1; then
-        export PATH="$(brew --prefix node@22)/bin:$PATH"
-    fi
-
-    cd {{ PROJECT_DIR }}
-    set -a
-    source {{ PROJECT_DIR }}/.env
-    set +a
-
-    export npm_config_cache="{{ LAB_DIR }}/npm-cache"
-    export npm_config_devdir="{{ LAB_DIR }}/node-gyp"
-    mkdir -p "$npm_config_cache" "$npm_config_devdir"
-
-    # Ensure any previous Compose-based runtime is not still holding port 7007.
-    docker compose stop backstage >/dev/null 2>&1 || true
-    docker compose rm -f backstage >/dev/null 2>&1 || true
-    docker compose up -d --wait postgres
-    just ensure-kubectl-proxy
-
-    cd {{ PROJECT_DIR }}/{{ APP_DIR }}
-    if [[ ! -d node_modules/@rspack/binding-darwin-arm64 && ! -d node_modules/@rspack/binding-darwin-x64 ]]; then
-        corepack yarn install
-    fi
-    NODE_ENV="development" \
-    POSTGRES_HOST="localhost" \
-    POSTGRES_PORT="5432" \
-    POSTGRES_DB="${POSTGRES_DB:-backstage}" \
-    POSTGRES_USER="${POSTGRES_USER:-backstage}" \
-    POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-backstage}" \
-    yarn start \
-      --config {{ PROJECT_DIR }}/{{ APP_DIR }}/app-config.yaml \
-      --config {{ PROJECT_DIR }}/{{ APP_DIR }}/app-config.dev.yaml
+    echo "Argo CD: http://localhost:8080"
+    echo "Backstage: http://localhost:7007"
 
 stop:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    just stop-port-forward
-    just stop-kubectl-proxy
-
-    cd {{ PROJECT_DIR }}
-    docker compose down
+    just stop-argocd-port-forward
+    just stop-backstage-port-forward
 
 clean:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    just stop-port-forward
-    just stop-kubectl-proxy
-
-    cd {{ PROJECT_DIR }}
-    docker compose down --volumes --remove-orphans
-    docker image prune -f
-
-    cd {{ PROJECT_DIR }}/{{ APP_DIR }}
-    corepack yarn clean
+    just stop
+    docker image rm backstage-lab:dev >/dev/null 2>&1 || true
 
 # Copy an AWS credentials file verbatim into Crossplane and apply the default cluster-wide AWS config.
 crossplane-aws-auth credentials_file:
@@ -174,40 +144,176 @@ crossplane-aws-auth credentials_file:
 
     echo "Updated Secret ${secret_namespace}/${secret_name} and ClusterProviderConfig/default."
 
-stop-port-forward:
+# Patch the in-cluster Backstage secret from repo root .env.
+backstage-cluster-auth:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    pkill -f 'kubectl -n argocd port-forward svc/argocd-server 8080:80' >/dev/null 2>&1 || true
+    if [[ ! -f "{{ PROJECT_DIR }}/.env" ]]; then
+        echo "Missing {{ PROJECT_DIR }}/.env" >&2
+        exit 1
+    fi
 
-stop-kubectl-proxy:
+    cd "{{ PROJECT_DIR }}"
+    set -a
+    source "{{ PROJECT_DIR }}/.env"
+    set +a
+
+    : "${AUTH_GITHUB_CLIENT_ID:?AUTH_GITHUB_CLIENT_ID must be set in .env}"
+    : "${AUTH_GITHUB_CLIENT_SECRET:?AUTH_GITHUB_CLIENT_SECRET must be set in .env}"
+
+    kubectl create namespace backstage --dry-run=client -o yaml | kubectl apply -f -
+    kubectl -n backstage create secret generic backstage-secrets \
+      --from-literal=BACKEND_SECRET="${BACKEND_SECRET:-local-dev-backend-secret}" \
+      --from-literal=AUTH_GITHUB_CLIENT_ID="${AUTH_GITHUB_CLIENT_ID}" \
+      --from-literal=AUTH_GITHUB_CLIENT_SECRET="${AUTH_GITHUB_CLIENT_SECRET}" \
+      --dry-run=client \
+      -o yaml | kubectl apply -f -
+
+    echo "Updated Secret backstage/backstage-secrets."
+
+# Configure local Argo CD GitHub SSO from repo root .env.
+argocd-github-auth:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    pkill -f 'kubectl proxy --context {{ KUBECTL_PROXY_CONTEXT }} --port={{ KUBECTL_PROXY_PORT }}' >/dev/null 2>&1 || true
+    for bin in kubectl sed base64; do
+        command -v "${bin}" >/dev/null 2>&1 || {
+            echo "Missing required binary: ${bin}" >&2
+            exit 1
+        }
+    done
 
-ensure-kubectl-proxy:
+    if [[ ! -f "{{ PROJECT_DIR }}/.env" ]]; then
+        echo "Missing {{ PROJECT_DIR }}/.env" >&2
+        exit 1
+    fi
+
+    cd "{{ PROJECT_DIR }}"
+    set -a
+    source "{{ PROJECT_DIR }}/.env"
+    set +a
+
+    : "${AUTH_GITHUB_CLIENT_ID:?AUTH_GITHUB_CLIENT_ID must be set in .env}"
+    : "${AUTH_GITHUB_CLIENT_SECRET:?AUTH_GITHUB_CLIENT_SECRET must be set in .env}"
+
+    rendered_dir="{{ LAB_DIR }}/argocd"
+    rendered_config="${rendered_dir}/github-sso-configmap.yaml"
+    template_file="{{ PROJECT_DIR }}/k8s/bootstrap/argocd/github-sso-configmap.yaml"
+    encoded_secret="$(printf '%s' "${AUTH_GITHUB_CLIENT_SECRET}" | base64 | tr -d '\n')"
+
+    mkdir -p "${rendered_dir}"
+
+    sed \
+      -e "s/__AUTH_GITHUB_CLIENT_ID__/${AUTH_GITHUB_CLIENT_ID}/g" \
+      "${template_file}" > "${rendered_config}"
+
+    kubectl apply -f "${rendered_config}"
+    kubectl apply -f "{{ PROJECT_DIR }}/k8s/bootstrap/argocd/rbac-local-admin.yaml"
+    kubectl -n argocd patch secret argocd-secret --type merge \
+      -p "{\"data\":{\"dex.github.clientSecret\":\"${encoded_secret}\"}}"
+    kubectl -n argocd rollout restart deployment/argocd-dex-server
+    kubectl -n argocd rollout restart deployment/argocd-server
+    kubectl -n argocd rollout status deployment/argocd-dex-server --timeout=300s
+    kubectl -n argocd rollout status deployment/argocd-server --timeout=300s
+
+    echo "Configured Argo CD GitHub SSO on http://localhost:8080 with local-lab admin RBAC."
+
+# Configure Argo CD repository credentials for this repo.
+argocd-repo-auth:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    if ! command -v kubectl >/dev/null 2>&1; then
-        echo "kubectl is not installed; Backstage will start, but Kubernetes resources will be unavailable." >&2
-        exit 0
+    repo_url="$(git remote get-url origin)"
+    case "${repo_url}" in
+        git@github.com:*)
+            repo_https_url="https://github.com/${repo_url#git@github.com:}"
+            ;;
+        https://github.com/*)
+            repo_https_url="${repo_url}"
+            ;;
+        *)
+            echo "Unsupported origin remote: ${repo_url}" >&2
+            exit 1
+            ;;
+    esac
+    repo_https_url="${repo_https_url%.git}.git"
+    repo_secret_name="repo-backstage-sandbox"
+    github_token=""
+
+    if command -v gh >/dev/null 2>&1; then
+        github_token="$(gh auth token 2>/dev/null || true)"
     fi
 
-    if ! kubectl config get-contexts -o name | grep -qx '{{ KUBECTL_PROXY_CONTEXT }}'; then
-        echo "kubectl context {{ KUBECTL_PROXY_CONTEXT }} not found; run 'just bootstrap-cluster' first to see local cluster resources in Backstage." >&2
-        exit 0
+    if [[ -z "${github_token}" && -f "{{ PROJECT_DIR }}/.env" ]]; then
+        cd "{{ PROJECT_DIR }}"
+        set -a
+        source "{{ PROJECT_DIR }}/.env"
+        set +a
+        github_token="${GITHUB_TOKEN:-}"
     fi
 
-    if pgrep -f 'kubectl proxy --context {{ KUBECTL_PROXY_CONTEXT }} --port={{ KUBECTL_PROXY_PORT }}' >/dev/null 2>&1; then
-        exit 0
+    if [[ -z "${github_token}" ]]; then
+        echo "No GitHub token available for Argo CD repo access. Authenticate with 'gh auth login' or set GITHUB_TOKEN in .env." >&2
+        exit 1
     fi
 
-    mkdir -p "{{ LAB_DIR }}"
-    nohup kubectl proxy --context {{ KUBECTL_PROXY_CONTEXT }} --port={{ KUBECTL_PROXY_PORT }} >"{{ KUBECTL_PROXY_LOG }}" 2>&1 &
+    kubectl -n argocd create secret generic "${repo_secret_name}" \
+      --from-literal=type=git \
+      --from-literal=url="${repo_https_url}" \
+      --from-literal=username=git \
+      --from-literal=password="${github_token}" \
+      --dry-run=client \
+      -o yaml | kubectl label --local -f - argocd.argoproj.io/secret-type=repository -o yaml | kubectl apply -f -
 
-    sleep 1
+    echo "Configured Argo CD repository credentials for ${repo_https_url}."
+
+# Apply or refresh the Argo CD Backstage Application and wait for the deployment.
+deploy-backstage:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    repo_url="$(git remote get-url origin)"
+    case "${repo_url}" in
+        git@github.com:*)
+            repo_https_url="https://github.com/${repo_url#git@github.com:}"
+            ;;
+        https://github.com/*)
+            repo_https_url="${repo_url}"
+            ;;
+        *)
+            echo "Unsupported origin remote: ${repo_url}" >&2
+            exit 1
+            ;;
+    esac
+    repo_https_url="${repo_https_url%.git}.git"
+    branch_name="$(git branch --show-current)"
+    rendered_dir="{{ LAB_DIR }}/argocd"
+    rendered_app="${rendered_dir}/backstage-application.yaml"
+    template_file="{{ PROJECT_DIR }}/k8s/bootstrap/argocd/backstage-application.yaml"
+
+    if [[ -z "${branch_name}" ]]; then
+        branch_name="main"
+    fi
+
+    mkdir -p "${rendered_dir}"
+
+    sed \
+      -e "s|__ARGOCD_REPO_URL__|${repo_https_url}|g" \
+      -e "s|__ARGOCD_BRANCH__|${branch_name}|g" \
+      "${template_file}" > "${rendered_app}"
+
+    kubectl apply -f "${rendered_app}"
+
+    for _ in $(seq 1 60); do
+        if kubectl -n backstage get deployment backstage >/dev/null 2>&1; then
+            break
+        fi
+        sleep 5
+    done
+
+    kubectl -n backstage rollout restart deployment/backstage
+    kubectl -n backstage rollout status deployment/backstage --timeout=300s
 
 build-backstage-image:
     #!/usr/bin/env bash
@@ -219,14 +325,51 @@ build-backstage-image:
       --file "{{ PROJECT_DIR }}/Dockerfile" \
       "{{ PROJECT_DIR }}"
 
-    echo "Built backstage-lab:dev"
+    k3d image import backstage-lab:dev -c {{ CLUSTER_NAME }}
+
+    echo "Built and imported backstage-lab:dev into k3d."
+
+ensure-argocd-port-forward:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if pgrep -f 'kubectl --context k3d-platform-lab -n argocd port-forward svc/argocd-server 8080:80' >/dev/null 2>&1; then
+        exit 0
+    fi
+
+    mkdir -p "{{ LAB_DIR }}"
+    nohup kubectl --context k3d-platform-lab -n argocd port-forward svc/argocd-server 8080:80 >"{{ ARGOCD_PORT_FORWARD_LOG }}" 2>&1 &
+    sleep 1
+
+ensure-backstage-port-forward:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if pgrep -f 'kubectl --context k3d-platform-lab -n backstage port-forward svc/backstage 7007:7007' >/dev/null 2>&1; then
+        exit 0
+    fi
+
+    mkdir -p "{{ LAB_DIR }}"
+    nohup kubectl --context k3d-platform-lab -n backstage port-forward svc/backstage 7007:7007 >"{{ BACKSTAGE_PORT_FORWARD_LOG }}" 2>&1 &
+    sleep 1
+
+stop-argocd-port-forward:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    pkill -f 'kubectl --context k3d-platform-lab -n argocd port-forward svc/argocd-server 8080:80' >/dev/null 2>&1 || true
+
+stop-backstage-port-forward:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    pkill -f 'kubectl --context k3d-platform-lab -n backstage port-forward svc/backstage 7007:7007' >/dev/null 2>&1 || true
 
 reset:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    just stop-port-forward
-    just stop-kubectl-proxy
+    just stop
     k3d cluster delete {{ CLUSTER_NAME }} >/dev/null 2>&1 || true
     docker image rm backstage-lab:dev >/dev/null 2>&1 || true
     rm -rf "{{ LAB_DIR }}"

@@ -25,7 +25,7 @@ spec:
             - --config
             - app-config.yaml
             - --config
-            - app-config.compose.yaml
+            - app-config.production.yaml
             - --config
             - /config/app-config.kubernetes.yaml
           ports:

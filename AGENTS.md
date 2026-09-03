@@ -33,12 +33,14 @@ capability areas just because they're nearby.
 - Human-facing contracts live in the nearest owning README, not in `AGENTS.md` or the root README.
 - When reorganizing docs, add a short pointer in the root README to the owning nested README rather than inlining detail there.
 - When you remove detail from one doc, relocate it to the owning doc rather than dropping it — it can be shortened, but the guidance must stay findable somewhere.
+- Replay notes for changes under ignored scaffold paths must live in a tracked file outside those ignored paths.
 
 **`backstage/` scaffold**
 - Treat `backstage/packages/` and `backstage/plugins/` as upgrade-sensitive generated code.
 - Don't edit them unless the user explicitly asks, or the change is a minimal backend registration line (e.g. `backend.add(...)`).
 - Before touching scaffold code, check whether the same behavior is achievable via the `backstage/app-config*.yaml` layers, `config/`, `k8s/`, or root docs instead.
-- Any change made anywhere under `backstage/` must be called out in the final response and described clearly enough that another agent or human could replay it from those instructions.
+- Any change made anywhere under `backstage/` must be called out in the final response and also recorded in the tracked file `BACKSTAGE-REPLAY.md`.
+- Before closing a task that changed anything under `backstage/`, verify that `BACKSTAGE-REPLAY.md` exists and still matches the current file state.
 - Catalog example data lives in `config/examples/`, not `backstage/examples/`; `just install` regenerates a `backstage/examples/` alongside the scaffold, but it is unused.
 - Keep setup notes, deployment instructions, and runbooks out of the scaffold — put them in `README.md` or `backstage/README.md`.
 
