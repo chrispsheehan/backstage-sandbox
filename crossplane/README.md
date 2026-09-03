@@ -1,15 +1,53 @@
 # Crossplane
 
 Crossplane is installed by `just bootstrap` via the underlying
-`scripts/local/justfile` recipe `bootstrap`, but it is not yet managed by Argo
-CD and there are no demo providers or managed resources in the default lab
-shape.
+`scripts/local/justfile` recipe `bootstrap`. The bootstrap flow now also
+installs the AWS family provider, but it is not yet managed by Argo CD and
+there are no demo managed resources in the default lab shape.
 
 Current scope:
 
 - install Crossplane core into `crossplane-system`
+- install the Upbound AWS family provider into Crossplane
 - wait for the core controllers to become ready
+- wait for the AWS family provider to become healthy
 - stop there
+
+The AWS family provider is the shared credentials layer. Per Upbound's current
+provider packaging, it supplies the AWS `ProviderConfig` APIs and is meant to be
+paired with service-scoped providers such as `provider-aws-s3` later.
 
 That keeps the bootstrap path ready for later Crossplane work without bringing
 back the earlier demo applications and provider setup.
+
+## Files
+
+- `providers/provider-family-aws.yaml`: installs `upbound/provider-family-aws`
+- `providers/kustomization.yaml`: repo-owned entrypoint for bootstrap applies
+- `providerconfigs/default-cluster-provider-config.yaml`: static cluster-wide AWS provider config
+
+## Local AWS Auth
+
+Use the root recipe below to copy your current local AWS CLI credentials into
+Crossplane:
+
+```bash
+just crossplane-aws-auth ~/.aws/credentials
+```
+
+That recipe:
+
+- uses the default names `aws-creds` and `default`
+- copies the supplied AWS credentials file verbatim into repo-local lab state
+- creates or updates `Secret/crossplane-system/aws-creds`
+- applies `ClusterProviderConfig/default` from `providerconfigs/default-cluster-provider-config.yaml`
+
+The resulting provider config is cluster-wide, so later AWS managed resources
+can reference it with:
+
+```yaml
+spec:
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig
+```

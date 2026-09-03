@@ -32,7 +32,7 @@ Node 24 also works if you already have it on `PATH`.
 - Use `k3d` instead of installing host-level `k3s` directly.
   `k3d` still runs real `k3s`, but keeps teardown trivial and only depends on Docker.
 - Install Argo CD for local GitOps experiments.
-- Install Crossplane core during bootstrap, but do not add providers or demo resources yet.
+- Install Crossplane core during bootstrap, plus the AWS family provider for shared AWS credentials wiring, but do not add demo managed resources yet.
 - Use committed demo `Secret` objects with obvious local-only values to minimize friction. This is acceptable here because the environment is disposable and non-production.
 
 ## Backstage Dev Loop
@@ -49,6 +49,7 @@ just install  # scaffold backstage/ and install dependencies (run once)
 just start    # Bootstrap k3d, Argo CD, and Crossplane
 just dev      # Postgres in Docker, Backstage from source on http://localhost:3000
 just bootstrap # Alias for cluster bootstrap
+just crossplane-aws-auth ~/.aws/credentials # Copy an AWS credentials file into Crossplane
 just stop     # stop local Docker Compose and any tracked port-forwards
 just clean    # stop local Docker Compose, remove its data, and clean Yarn state
 ```
@@ -89,6 +90,7 @@ That command will:
 1. Create the disposable `k3s` cluster with `k3d`.
 2. Install Argo CD.
 3. Install Crossplane core.
+4. Install the Crossplane AWS family provider.
 
 At the end of bootstrap, Argo CD is port-forwarded on:
 
@@ -107,6 +109,21 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 Use username `admin` with that password.
 
 Crossplane does not expose a web UI in this setup by default.
+
+The bootstrap flow installs the AWS family provider only. That package provides
+AWS `ProviderConfig` support and is intended to be paired with service-scoped
+providers such as `provider-aws-s3` when you start defining managed resources.
+
+To let Crossplane use the same AWS identity as your local CLI, copy a shared
+credentials file into a Kubernetes `Secret` and a cluster-wide provider config:
+
+```bash
+just crossplane-aws-auth ~/.aws/credentials
+```
+
+That command uses the default names, copies the file verbatim into
+`Secret/crossplane-system/aws-creds`, and applies the static
+`ClusterProviderConfig/default`.
 
 `build-backstage-image` is still available separately for later work, but
 `just bootstrap` does not use it.

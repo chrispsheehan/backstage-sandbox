@@ -95,3 +95,10 @@ clean:
 
     cd {{ PROJECT_DIR }}/{{ APP_DIR }}
     corepack yarn clean
+
+# Copy an AWS credentials file verbatim into Crossplane and apply the default cluster-wide AWS config.
+crossplane-aws-auth credentials_file:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    just --justfile {{ PROJECT_DIR }}/scripts/local/justfile crossplane-aws-auth "{{ credentials_file }}"

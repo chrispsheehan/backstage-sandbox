@@ -8,6 +8,41 @@ KUBECTL_PROXY_LOG := LAB_ROOT / "/kubectl-proxy.log"
 default:
     @just --justfile {{ justfile() }} --list
 
+crossplane-aws-auth credentials_file:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    for bin in kubectl cp; do
+        command -v "${bin}" >/dev/null 2>&1 || {
+            echo "Missing required binary: ${bin}" >&2
+            exit 1
+        }
+    done
+
+    credentials_file="{{ credentials_file }}"
+    secret_namespace="crossplane-system"
+    secret_name="aws-creds"
+    aws_dir="{{ LAB_ROOT }}/aws"
+    creds_file="${aws_dir}/aws-creds.credentials"
+    provider_config_file="{{ PROJECT_DIR }}/crossplane/providerconfigs/default-cluster-provider-config.yaml"
+
+    if [[ ! -f "${credentials_file}" ]]; then
+        echo "Credentials file not found: ${credentials_file}" >&2
+        exit 1
+    fi
+
+    mkdir -p "${aws_dir}"
+    cp "${credentials_file}" "${creds_file}"
+
+    kubectl -n "${secret_namespace}" create secret generic "${secret_name}" \
+      --from-file=creds="${creds_file}" \
+      --dry-run=client \
+      -o yaml | kubectl apply -f -
+
+    kubectl apply -f "${provider_config_file}"
+
+    echo "Updated Secret ${secret_namespace}/${secret_name} and ClusterProviderConfig/default."
+
 stop-port-forward:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -93,6 +128,8 @@ bootstrap:
       --version 2.3.4
     kubectl -n crossplane-system rollout status deployment/crossplane --timeout=300s
     kubectl -n crossplane-system rollout status deployment/crossplane-rbac-manager --timeout=300s
+    kubectl apply -k "{{ PROJECT_DIR }}/crossplane/providers"
+    kubectl wait --for=condition=Healthy provider/provider-family-aws --timeout=300s
 
     just --justfile "{{ justfile() }}" stop-port-forward
     kubectl -n argocd port-forward svc/argocd-server 8080:80 &
