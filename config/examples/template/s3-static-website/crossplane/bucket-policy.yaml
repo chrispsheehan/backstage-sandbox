@@ -1,0 +1,26 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketPolicy
+metadata:
+  name: ${{ values.name }}
+  namespace: apps-${{ values.name }}
+spec:
+  forProvider:
+    region: ${{ values.region }}
+    bucketRef:
+      name: ${{ values.name }}
+    policy: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "PublicReadForWebsite",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::${{ values.bucketName }}/*"
+          }
+        ]
+      }
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig

@@ -1,71 +1,66 @@
 apiVersion: scaffolder.backstage.io/v1beta3
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-template
 kind: Template
 metadata:
-  name: example-nodejs-template
-  title: Example Node.js Template
-  description: An example template for the scaffolder that creates a simple Node.js service
+  name: s3-static-website-pr
+  title: S3 Static Website PR
+  description: Open a PR against this repo that adds an app folder with a hello-world site and Crossplane S3 website manifests
+  tags:
+    - aws
+    - crossplane
+    - argocd
+    - static-site
 spec:
   owner: user:guest
-  type: service
-
-  # These parameters are used to generate the input form in the frontend, and are
-  # used to gather input data for the execution of the template.
+  type: infrastructure
   parameters:
-    - title: Fill in some steps
+    - title: Website details
       required:
         - name
+        - bucketName
       properties:
         name:
-          title: Name
+          title: App Folder Name
           type: string
-          description: Unique name of the component
+          description: Folder name to create under apps/
           ui:field: EntityNamePicker
           ui:autofocus: true
-    - title: Choose a location
-      required:
-        - repoUrl
-      properties:
-        repoUrl:
-          title: Repository Location
+        bucketName:
+          title: S3 Bucket Name
           type: string
-          ui:field: RepoUrlPicker
-          ui:options:
-            allowedHosts:
-              - github.com
-
-  # These steps are executed in the scaffolder backend, using data that we gathered
-  # via the parameters above.
+          description: Globally unique S3 bucket name for the website
+          pattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+        region:
+          title: AWS Region
+          type: string
+          default: eu-west-2
+        siteTitle:
+          title: Site Title
+          type: string
+          default: Hello World
   steps:
-    # Each step executes an action, in this case one templates files into the working directory.
-    - id: fetch-base
+    - id: fetchBase
       name: Fetch Base
       action: fetch:template
       input:
-        url: ./content
+        url: ./s3-static-website
         values:
           name: ${{ parameters.name }}
-
-    # This step publishes the contents of the working directory to GitHub.
-    # If you or your organization prefer another default branch name over 'main'
-    # you can change that here.
-    - id: publish
-      name: Publish
-      action: publish:github
+          bucketName: ${{ parameters.bucketName }}
+          region: ${{ parameters.region }}
+          siteTitle: ${{ parameters.siteTitle }}
+    - id: publishPullRequest
+      name: Open Pull Request
+      action: publish:github:pull-request
       input:
-        description: This is ${{ parameters.name }}
-        repoUrl: ${{ parameters.repoUrl }}
-        defaultBranch: 'main'
-
-    # The final step is to register our new component in the catalog.
-    - id: register
-      name: Register
-      action: catalog:register
-      input:
-        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
-        catalogInfoPath: '/catalog-info.yaml'
-
-    # Let's notify the user that the template has completed using the Notification action
+        repoUrl: github.com?owner=chrispsheehan&repo=backstage-sandbox
+        branchName: scaffolder/s3-static-${{ parameters.name }}
+        targetBranchName: main
+        targetPath: apps/${{ parameters.name }}
+        title: Add S3 static website app for ${{ parameters.name }}
+        description: |
+          Adds apps/${{ parameters.name }} with hello-world site content, Argo CD metadata, and Crossplane manifests for an S3 static website bucket.
+        commitMessage: Add S3 static website app for ${{ parameters.name }}
+        update: true
     - id: notify
       name: Notify
       action: notification:send
@@ -74,14 +69,9 @@ spec:
         entityRefs:
           - user:default/guest
         title: 'Template executed'
-        info: 'Your template has been executed'
+        info: 'Opened a PR for apps/${{ parameters.name }}'
         severity: 'normal'
-
-  # Outputs are displayed to the user after a successful execution of the template.
   output:
     links:
-      - title: Repository
-        url: ${{ steps['publish'].output.remoteUrl }}
-      - title: Open in catalog
-        icon: catalog
-        entityRef: ${{ steps['register'].output.entityRef }}
+      - title: Pull Request
+        url: https://github.com/chrispsheehan/backstage-sandbox/pull/${{ steps['publishPullRequest'].output.pullRequestNumber }}

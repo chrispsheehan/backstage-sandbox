@@ -1,0 +1,15 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketWebsiteConfiguration
+metadata:
+  name: ${{ values.name }}
+  namespace: apps-${{ values.name }}
+spec:
+  forProvider:
+    region: ${{ values.region }}
+    bucketRef:
+      name: ${{ values.name }}
+    indexDocument:
+      suffix: index.html
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig

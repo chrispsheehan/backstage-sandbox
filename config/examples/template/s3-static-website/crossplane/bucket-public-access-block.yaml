@@ -1,0 +1,17 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketPublicAccessBlock
+metadata:
+  name: ${{ values.name }}
+  namespace: apps-${{ values.name }}
+spec:
+  forProvider:
+    region: ${{ values.region }}
+    bucketRef:
+      name: ${{ values.name }}
+    blockPublicAcls: false
+    blockPublicPolicy: false
+    ignorePublicAcls: false
+    restrictPublicBuckets: false
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig
