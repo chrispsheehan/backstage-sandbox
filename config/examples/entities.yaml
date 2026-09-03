@@ -37,7 +37,6 @@ kind: Resource
 metadata:
   name: argocd
   annotations:
-    backstage.io/kubernetes-namespace: argocd
     backstage.io/kubernetes-label-selector: app.kubernetes.io/part-of=argocd
 spec:
   type: gitops
