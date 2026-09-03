@@ -101,6 +101,14 @@ stop:
     just stop-argocd-port-forward
     just stop-backstage-port-forward
 
+# Stop the local k3d cluster without deleting it.
+stop-cluster:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    just stop
+    k3d cluster stop {{ CLUSTER_NAME }}
+
 clean:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -325,7 +333,7 @@ build-backstage-image:
       --file "{{ PROJECT_DIR }}/Dockerfile" \
       "{{ PROJECT_DIR }}"
 
-    k3d image import backstage-lab:dev -c {{ CLUSTER_NAME }}
+    k3d image import backstage-lab:dev -c {{ CLUSTER_NAME }} --mode direct
 
     echo "Built and imported backstage-lab:dev into k3d."
 

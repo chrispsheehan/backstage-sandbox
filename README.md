@@ -81,7 +81,8 @@ just crossplane-aws-auth ~/.aws/credentials # Copy an AWS credentials file into 
 just argocd-github-auth # Wire local Argo CD Dex to the GitHub OAuth app in .env
 just argocd-repo-auth # Give Argo CD credentials to sync this repo when it is private
 just deploy-backstage # Rebuild/sync the Backstage deployment workflow without recreating the cluster
-just stop     # stop local Docker Compose and any tracked port-forwards
+just stop     # stop tracked port-forwards only
+just stop-cluster # stop the local k3d cluster without deleting it
 just clean    # stop port-forwards and remove the local Backstage image
 ```
 
@@ -92,6 +93,11 @@ first if `yarn` isn't already on `PATH`, since `create-app` requires Yarn.
 `just start` and `just deploy-backstage` use Docker to build the runtime image,
 so they do not require a local Node toolchain after the scaffold already
 exists.
+
+The Backstage runtime image is currently large enough that `k3d`'s default
+tools-node import path may get killed during `docker save` on some local
+machines. This repo uses `k3d image import --mode direct` to avoid that extra
+tarball hop.
 
 `just start` is the normal loop now. Backstage is served from the cluster on
 `http://localhost:7007` via `kubectl port-forward`, not from a local source
@@ -189,4 +195,10 @@ To tear the entire lab down and remove local lab state:
 
 ```bash
 just reset
+```
+
+To stop the cluster without deleting it:
+
+```bash
+just stop-cluster
 ```
