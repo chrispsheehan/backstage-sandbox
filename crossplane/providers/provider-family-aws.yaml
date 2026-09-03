@@ -2,5 +2,7 @@ apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-family-aws
+  labels:
+    pkg.crossplane.io/package: provider-family-aws
 spec:
   package: xpkg.upbound.io/upbound/provider-family-aws:v2.7.1

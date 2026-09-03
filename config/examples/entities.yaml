@@ -50,8 +50,7 @@ kind: Resource
 metadata:
   name: crossplane
   annotations:
-    backstage.io/kubernetes-namespace: crossplane-system
-    backstage.io/kubernetes-label-selector: app.kubernetes.io/instance=crossplane
+    backstage.io/kubernetes-label-selector: pkg.crossplane.io/package=provider-family-aws
 spec:
   type: control-plane
   lifecycle: experimental
