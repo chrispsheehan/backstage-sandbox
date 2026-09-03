@@ -1,0 +1,17 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketPublicAccessBlock
+metadata:
+  name: testy-test
+  namespace: apps-testy-test
+spec:
+  forProvider:
+    region: eu-west-2
+    bucketRef:
+      name: testy-test
+    blockPublicAcls: false
+    blockPublicPolicy: false
+    ignorePublicAcls: false
+    restrictPublicBuckets: false
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig

@@ -1,0 +1,15 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketWebsiteConfiguration
+metadata:
+  name: testy-test
+  namespace: apps-testy-test
+spec:
+  forProvider:
+    region: eu-west-2
+    bucketRef:
+      name: testy-test
+    indexDocument:
+      suffix: index.html
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig

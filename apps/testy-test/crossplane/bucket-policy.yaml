@@ -1,0 +1,26 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketPolicy
+metadata:
+  name: testy-test
+  namespace: apps-testy-test
+spec:
+  forProvider:
+    region: eu-west-2
+    bucketRef:
+      name: testy-test
+    policy: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "PublicReadForWebsite",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::thisnthat/*"
+          }
+        ]
+      }
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig

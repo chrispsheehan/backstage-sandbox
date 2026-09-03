@@ -1,0 +1,14 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: Bucket
+metadata:
+  name: testy-test
+  namespace: apps-testy-test
+  annotations:
+    crossplane.io/external-name: thisnthat
+spec:
+  forProvider:
+    region: eu-west-2
+    forceDestroy: true
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig
