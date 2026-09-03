@@ -247,22 +247,10 @@ argocd-repo-auth:
     esac
     repo_https_url="${repo_https_url%.git}.git"
     repo_secret_name="repo-backstage-sandbox"
-    github_token=""
-
-    if command -v gh >/dev/null 2>&1; then
-        github_token="$(gh auth token 2>/dev/null || true)"
-    fi
-
-    if [[ -z "${github_token}" && -f "{{ PROJECT_DIR }}/.env" ]]; then
-        cd "{{ PROJECT_DIR }}"
-        set -a
-        source "{{ PROJECT_DIR }}/.env"
-        set +a
-        github_token="${GITHUB_TOKEN:-}"
-    fi
+    github_token="$(gh auth token 2>/dev/null || true)"
 
     if [[ -z "${github_token}" ]]; then
-        echo "No GitHub token available for Argo CD repo access. Authenticate with 'gh auth login' or set GITHUB_TOKEN in .env." >&2
+        echo "No GitHub token available for Argo CD repo access. Authenticate with 'gh auth login'." >&2
         exit 1
     fi
 

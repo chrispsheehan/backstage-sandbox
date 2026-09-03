@@ -8,6 +8,7 @@ Contents:
 - `src/index.html`: starter hello-world site content
 - `crossplane/`: S3 website bucket manifests for Crossplane
 - `argocd/application.yaml`: an Argo CD `Application` that points at the Crossplane manifests in this folder
+- bucket name format: `${{ values.bucketNamePrefix }}-${{ values.awsAccountId }}-${{ values.region }}`
 
 Prerequisites:
 

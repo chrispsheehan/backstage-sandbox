@@ -16,7 +16,8 @@ spec:
     - title: Website details
       required:
         - name
-        - bucketName
+        - bucketNamePrefix
+        - awsAccountId
         - repoUrl
       properties:
         name:
@@ -39,11 +40,16 @@ spec:
               - backstage-sandbox
             requestUserCredentials:
               secretsKey: USER_OAUTH_TOKEN
-        bucketName:
-          title: S3 Bucket Name
+        bucketNamePrefix:
+          title: S3 Bucket Name Prefix
           type: string
-          description: Globally unique S3 bucket name for the website
-          pattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+          description: Lowercase prefix that will become <prefix>-<account>-<region>
+          pattern: '^[a-z0-9][a-z0-9.-]{1,30}[a-z0-9]$'
+        awsAccountId:
+          title: AWS Account ID
+          type: string
+          description: 12-digit AWS account ID to include in the bucket name
+          pattern: '^[0-9]{12}$'
         region:
           title: AWS Region
           type: string
@@ -60,7 +66,9 @@ spec:
         url: ./s3-static-website
         values:
           name: ${{ parameters.name }}
-          bucketName: ${{ parameters.bucketName }}
+          bucketName: ${{ parameters.bucketNamePrefix }}-${{ parameters.awsAccountId }}-${{ parameters.region }}
+          bucketNamePrefix: ${{ parameters.bucketNamePrefix }}
+          awsAccountId: ${{ parameters.awsAccountId }}
           region: ${{ parameters.region }}
           siteTitle: ${{ parameters.siteTitle }}
     - id: publishPullRequest

@@ -105,7 +105,7 @@ process. `just bootstrap-cluster` is infra-only; it does not deploy or refresh
 the Backstage application.
 
 Prerequisites: Docker, `just`, `kubectl`, `helm`, `k3d`, and GitHub
-authentication through either `gh auth login` or `GITHUB_TOKEN` in `.env`.
+authentication through `gh auth login`.
 Node 22 or 24 is only needed for `just install` when recreating the scaffold —
 see
 [Install Prerequisites](#install-prerequisites-macos--homebrew).
@@ -128,7 +128,7 @@ That command will:
 3. Install Crossplane core.
 4. Install the Crossplane AWS family provider.
 5. Configure Argo CD GitHub SSO when `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` are set in `.env`.
-6. Configure Argo CD repo access for this repo using `gh auth token` or `GITHUB_TOKEN`.
+6. Configure Argo CD repo access for this repo using `gh auth token`.
 7. Build and import the `backstage-lab:dev` image into `k3d`.
 8. Apply the Argo CD `backstage` `Application` and wait for the `backstage` deployment rollout.
 9. Port-forward Argo CD on `http://localhost:8080` and Backstage on `http://localhost:7007`.
@@ -177,6 +177,10 @@ credentials file into a Kubernetes `Secret` and a cluster-wide provider config:
 just crossplane-aws-auth ~/.aws/credentials
 ```
 
+The S3 website scaffolder derives bucket names as
+`<prefix>-<AWS_ACCOUNT_ID>-<region>`. The form asks for `AWS_ACCOUNT_ID`
+explicitly.
+
 That command uses the default names, copies the file verbatim into
 `Secret/crossplane-system/aws-creds`, and applies the static
 `ClusterProviderConfig/default`.
@@ -186,8 +190,7 @@ This repo includes a matching `User/default/chrispsheehan` catalog entity so
 the default GitHub sign-in resolver succeeds in the deployed app.
 
 If this repo is private, Argo CD needs repository credentials to sync it.
-`just start` handles that automatically through `gh auth token` when available,
-or `GITHUB_TOKEN` from `.env` as a fallback.
+`just start` handles that automatically through `gh auth token`.
 
 ## Reset
 
