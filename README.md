@@ -25,7 +25,7 @@ Node 24 also works if you already have it on `PATH`.
 - [config/README.md](config/README.md) explains how repo-owned catalog data overrides the scaffold's example data.
 - [crossplane/README.md](crossplane/README.md) explains the minimal Crossplane setup currently installed by bootstrap.
 - [k8s/README.md](k8s/README.md) explains the cluster bootstrap order, Argo CD ownership, and local access pattern.
-- `scripts/local/justfile` contains the local bootstrap, port-forward, image-build, and reset commands.
+- `justfile` contains the local bootstrap, auth, image-build, and reset commands.
 
 ## Recommended Shape
 
@@ -37,18 +37,17 @@ Node 24 also works if you already have it on `PATH`.
 
 ## Backstage Dev Loop
 
-`just start` is the cluster path: it bootstraps `k3d`, Argo CD, and
-Crossplane. `just dev` is the only local Backstage runtime path: it runs
-Postgres in Docker and serves Backstage from `backstage/` on
-`http://localhost:3000`. `just bootstrap` is an explicit alias for the same
-cluster bootstrap flow. Create `.env` from `.example.env` before running
-`just dev`.
+`just start` is the one-command local setup path: it bootstraps `k3d`, Argo CD,
+and Crossplane, copies `~/.aws/credentials` into Crossplane, and then runs
+Backstage from source on `http://localhost:3000`. `just bootstrap-cluster` is
+the infra-only path. Create `.env` from `.example.env` before running
+`just start` or `just dev`.
 
 ```bash
 just install  # scaffold backstage/ and install dependencies (run once)
-just start    # Bootstrap k3d, Argo CD, and Crossplane
+just start    # Bootstrap cluster, wire Crossplane auth, and run Backstage dev
+just bootstrap-cluster # Bootstrap k3d, Argo CD, and Crossplane
 just dev      # Postgres in Docker, Backstage from source on http://localhost:3000
-just bootstrap # Alias for cluster bootstrap
 just crossplane-aws-auth ~/.aws/credentials # Copy an AWS credentials file into Crossplane
 just stop     # stop local Docker Compose and any tracked port-forwards
 just clean    # stop local Docker Compose, remove its data, and clean Yarn state
@@ -67,8 +66,8 @@ Yarn using a repo-local cache path.
 `backstage/app-config.dev.yaml` over the base config. When the local `k3d`
 context exists, `just dev` also starts a `kubectl proxy` so Backstage can show
 Argo CD and Crossplane resources from the local cluster in the Kubernetes tab.
-`just start` and `just bootstrap` are infra-only; they do not deploy Backstage
-into the cluster yet.
+`just bootstrap-cluster` is infra-only; it does not deploy Backstage into the
+cluster.
 
 Prerequisites: Docker, `just`, `kubectl`, `helm`, `k3d`, and Node 22 or 24 (for
 `just dev`, `just install`, and optional image builds) — see
@@ -82,7 +81,7 @@ Prerequisites: Docker, `kubectl`, `helm`, `k3d` — see
 Then run:
 
 ```bash
-just bootstrap
+just bootstrap-cluster
 ```
 
 That command will:
@@ -126,12 +125,12 @@ That command uses the default names, copies the file verbatim into
 `ClusterProviderConfig/default`.
 
 `build-backstage-image` is still available separately for later work, but
-`just bootstrap` does not use it.
+`just bootstrap-cluster` does not use it.
 
 ## Reset
 
 To tear the entire lab down and remove local lab state:
 
 ```bash
-just --justfile scripts/local/justfile reset
+just reset
 ```

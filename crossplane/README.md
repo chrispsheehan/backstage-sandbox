@@ -1,7 +1,6 @@
 # Crossplane
 
-Crossplane is installed by `just bootstrap` via the underlying
-`scripts/local/justfile` recipe `bootstrap`. The bootstrap flow now also
+Crossplane is installed by `just bootstrap-cluster`. The bootstrap flow now also
 installs the AWS family provider, but it is not yet managed by Argo CD and
 there are no demo managed resources in the default lab shape.
 

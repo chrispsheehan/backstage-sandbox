@@ -18,7 +18,7 @@ This repo uses a deliberately split ownership model:
 
 ## Bootstrap Order
 
-1. `just bootstrap`
+1. `just bootstrap-cluster`
 2. Open the Argo CD UI on `http://localhost:8080`.
 
 The bootstrap script creates the `k3d` cluster, installs Argo CD, and installs
@@ -32,7 +32,7 @@ This lab intentionally avoids ingress, TLS termination, and external DNS.
 Use port-forwarding:
 
 ```bash
-just bootstrap
+just bootstrap-cluster
 ```
 
 Argo CD is there for GitOps inspection. Backstage is not deployed into the
