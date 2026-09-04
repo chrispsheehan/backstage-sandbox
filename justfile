@@ -85,6 +85,7 @@ bootstrap-cluster:
     kubectl -n crossplane-system rollout status deployment/crossplane-rbac-manager --timeout=300s
     kubectl apply -k "{{ PROJECT_DIR }}/crossplane/providers"
     kubectl wait --for=condition=Healthy provider/provider-family-aws --timeout=300s
+    kubectl wait --for=condition=Healthy provider/provider-aws-s3 --timeout=300s
 
     just ensure-argocd-port-forward
 

@@ -28,6 +28,10 @@ Crossplane core. `just start` builds/imports the Backstage image, configures
 repo access for Argo CD, and deploys the Backstage application into the
 cluster.
 
+Crossplane bootstrap includes both the AWS family provider and the AWS S3
+provider, so generated S3 site apps can reconcile without additional manual
+provider installation after merge.
+
 `just deploy-backstage` also renders and applies the repo-owned Argo CD
 `ApplicationSet` that scans `apps/*/argocd` on the current Git branch and
 applies those committed child `Application` manifests into the `argocd`

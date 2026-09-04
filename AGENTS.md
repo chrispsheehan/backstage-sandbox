@@ -34,6 +34,7 @@ capability areas just because they're nearby.
 - When reorganizing docs, add a short pointer in the root README to the owning nested README rather than inlining detail there.
 - When you remove detail from one doc, relocate it to the owning doc rather than dropping it — it can be shortened, but the guidance must stay findable somewhere.
 - Replay notes for changes under ignored scaffold paths must live in a tracked file outside those ignored paths.
+- When adding or changing Backstage scaffolder templates, ensure the repo bootstrap already includes any runtime providers, CRDs, or controllers required for the generated resources to reconcile after merge. Do not stop at generating manifests that the default lab cannot apply.
 
 **`backstage/` scaffold**
 - Treat `backstage/packages/` and `backstage/plugins/` as upgrade-sensitive generated code.

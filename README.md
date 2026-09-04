@@ -159,7 +159,7 @@ That command will:
 1. Create the disposable `k3s` cluster with `k3d`.
 2. Install Argo CD.
 3. Install Crossplane core.
-4. Install the Crossplane AWS family provider.
+4. Install the Crossplane AWS family provider and the S3 service provider.
 5. Configure Argo CD GitHub SSO when `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` are set in `.env`.
 6. Configure Argo CD repo access for this repo using `gh auth token`.
 7. Build and import the `backstage-lab:dev` image into `k3d`.
@@ -188,9 +188,10 @@ Use username `admin` with that password.
 
 Crossplane does not expose a web UI in this setup by default.
 
-The bootstrap flow installs the AWS family provider only. That package provides
-AWS `ProviderConfig` support and is intended to be paired with service-scoped
-providers such as `provider-aws-s3` when you start defining managed resources.
+The bootstrap flow installs both the AWS family provider and the AWS S3
+service-scoped provider. The family provider supplies shared AWS
+`ProviderConfig` APIs, and the S3 provider installs the CRDs required by the
+repo's generated static-site templates.
 
 When `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` are set in `.env`,
 `just start` and `just bootstrap-cluster` configure Argo CD Dex for GitHub
