@@ -41,6 +41,12 @@ If repo root `.env` contains `AUTH_GITHUB_CLIENT_ID` and
 same GitHub OAuth app as local Backstage. That app must include callback URL
 `http://localhost:8080/api/dex/callback`.
 
+Backstage's own GitHub OAuth credentials are not owned by the Argo CD
+application manifests. They are patched into
+`Secret/backstage/backstage-secrets` from the repo root `.env` by
+`just backstage-cluster-auth`, which is also invoked by `just start` and
+`just deploy-backstage` when those variables are set.
+
 ## Access Pattern
 
 This lab intentionally avoids ingress, TLS termination, and external DNS.

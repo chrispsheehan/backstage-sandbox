@@ -44,10 +44,20 @@ into `k3d`, and deploys Backstage into the cluster through Argo CD.
 `just bootstrap-cluster` is the infra-only path. Create `.env` from
 `.example.env` before running `just start`.
 
+Backstage GitHub OAuth credentials are runtime-managed from repo root `.env`,
+not committed as a GitOps-managed Kubernetes `Secret`. `just start` and
+`just deploy-backstage` refresh `Secret/backstage/backstage-secrets` before the
+Backstage rollout when `AUTH_GITHUB_CLIENT_ID` and
+`AUTH_GITHUB_CLIENT_SECRET` are set.
+
 For local GitHub sign-in, configure a GitHub OAuth app with:
 
 - Homepage URL: `http://localhost:3000`
 - Authorization callback URL: `http://localhost:7007/api/auth/github/handler/frame`
+ 
+Use the same origin for both values in this repo, since Backstage is served from
+the in-cluster app backend on `http://localhost:7007`, not from a separate
+frontend dev server.
 
 Then set `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` in `.env`.
 

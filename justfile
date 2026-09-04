@@ -280,6 +280,17 @@ deploy-backstage:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    if [[ -f "{{ PROJECT_DIR }}/.env" ]]; then
+        set -a
+        source "{{ PROJECT_DIR }}/.env"
+        set +a
+    fi
+    if [[ -n "${AUTH_GITHUB_CLIENT_ID:-}" && -n "${AUTH_GITHUB_CLIENT_SECRET:-}" ]]; then
+        just backstage-cluster-auth
+    else
+        echo "AUTH_GITHUB_CLIENT_ID / AUTH_GITHUB_CLIENT_SECRET not set; keeping existing backstage/backstage-secrets values."
+    fi
+
     repo_url="$(git remote get-url origin)"
     case "${repo_url}" in
         git@github.com:*)
@@ -361,8 +372,16 @@ ensure-argocd-port-forward:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    if [[ -f "{{ ARGOCD_PORT_FORWARD_LOG }}" ]] && grep -q 'error: lost connection to pod' "{{ ARGOCD_PORT_FORWARD_LOG }}"; then
+        just stop-argocd-port-forward
+    fi
+
     if pgrep -f 'kubectl --context k3d-platform-lab -n argocd port-forward svc/argocd-server 8080:80' >/dev/null 2>&1; then
-        exit 0
+        if curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
+            exit 0
+        fi
+
+        just stop-argocd-port-forward
     fi
 
     mkdir -p "{{ LAB_DIR }}"
@@ -373,8 +392,16 @@ ensure-backstage-port-forward:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    if [[ -f "{{ BACKSTAGE_PORT_FORWARD_LOG }}" ]] && grep -q 'error: lost connection to pod' "{{ BACKSTAGE_PORT_FORWARD_LOG }}"; then
+        just stop-backstage-port-forward
+    fi
+
     if pgrep -f 'kubectl --context k3d-platform-lab -n backstage port-forward svc/backstage 7007:7007' >/dev/null 2>&1; then
-        exit 0
+        if curl -fsS http://localhost:7007/ >/dev/null 2>&1; then
+            exit 0
+        fi
+
+        just stop-backstage-port-forward
     fi
 
     mkdir -p "{{ LAB_DIR }}"
