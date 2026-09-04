@@ -308,7 +308,9 @@ deploy-backstage:
     branch_name="$(git branch --show-current)"
     rendered_dir="{{ LAB_DIR }}/argocd"
     rendered_app="${rendered_dir}/backstage-application.yaml"
+    rendered_generated_apps="${rendered_dir}/generated-applicationset.yaml"
     template_file="{{ PROJECT_DIR }}/k8s/bootstrap/argocd/backstage-application.yaml"
+    generated_apps_template_file="{{ PROJECT_DIR }}/k8s/bootstrap/argocd/generated-applicationset.yaml"
 
     if [[ -z "${branch_name}" ]]; then
         branch_name="main"
@@ -321,7 +323,13 @@ deploy-backstage:
       -e "s|__ARGOCD_BRANCH__|${branch_name}|g" \
       "${template_file}" > "${rendered_app}"
 
+    sed \
+      -e "s|__ARGOCD_REPO_URL__|${repo_https_url}|g" \
+      -e "s|__ARGOCD_BRANCH__|${branch_name}|g" \
+      "${generated_apps_template_file}" > "${rendered_generated_apps}"
+
     kubectl apply -f "${rendered_app}"
+    kubectl apply -f "${rendered_generated_apps}"
 
     for _ in $(seq 1 60); do
         if kubectl -n backstage get deployment backstage >/dev/null 2>&1; then

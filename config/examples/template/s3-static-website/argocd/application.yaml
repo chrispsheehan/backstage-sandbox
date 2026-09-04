@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:chrispsheehan/backstage-sandbox.git
+    repoURL: https://github.com/chrispsheehan/backstage-sandbox.git
     targetRevision: main
     path: apps/${{ values.name }}/crossplane
   destination:

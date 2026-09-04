@@ -44,6 +44,10 @@ into `k3d`, and deploys Backstage into the cluster through Argo CD.
 `just bootstrap-cluster` is the infra-only path. Create `.env` from
 `.example.env` before running `just start`.
 
+`just deploy-backstage` also applies an Argo CD `ApplicationSet` that scans
+committed `apps/*/argocd` definitions on the current Git branch and
+auto-registers generated site apps after their pull requests merge.
+
 Backstage GitHub OAuth credentials are runtime-managed from repo root `.env`,
 not committed as a GitOps-managed Kubernetes `Secret`. `just start` and
 `just deploy-backstage` refresh `Secret/backstage/backstage-secrets` before the
@@ -118,6 +122,10 @@ tarball hop.
 `http://localhost:7007` via `kubectl port-forward`, not from a local source
 process. `just bootstrap-cluster` is infra-only; it does not deploy or refresh
 the Backstage application.
+
+Generated S3 site apps are registered automatically from their committed
+`apps/<name>/argocd/application.yaml` definitions after `just deploy-backstage`
+has been run against the branch that contains them.
 
 Some `k3d` installs write the cluster endpoint into kubeconfig as
 `https://0.0.0.0:<port>`. That wildcard bind address is not reachable as a

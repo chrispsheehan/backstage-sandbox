@@ -10,6 +10,8 @@ This repo uses a deliberately split ownership model:
 ## Directory Shape
 
 - `bootstrap/argocd/`: local Argo overrides and the Backstage `Application`.
+- `bootstrap/argocd/generated-applicationset.yaml`: repo-owned `ApplicationSet`
+  that auto-discovers committed generated app definitions under `apps/*/argocd`.
 - `base/backstage/`: raw Backstage stack manifests.
   The cluster-specific Backstage config is kept as
   `base/backstage/app-config.kubernetes.yaml` and packaged into a `ConfigMap`
@@ -25,6 +27,11 @@ The bootstrap script creates the `k3d` cluster, installs Argo CD, and installs
 Crossplane core. `just start` builds/imports the Backstage image, configures
 repo access for Argo CD, and deploys the Backstage application into the
 cluster.
+
+`just deploy-backstage` also renders and applies the repo-owned Argo CD
+`ApplicationSet` that scans `apps/*/argocd` on the current Git branch and
+applies those committed child `Application` manifests into the `argocd`
+namespace.
 
 On some local `k3d` setups, the generated kubeconfig server for
 `k3d-platform-lab` can be `https://0.0.0.0:<port>`. The bootstrap flow
@@ -87,6 +94,11 @@ recreating the cluster:
 just argocd-repo-auth
 just deploy-backstage
 ```
+
+After that `ApplicationSet` is in place, merging a generated site PR into the
+tracked branch is enough for Argo CD to discover the committed
+`apps/<name>/argocd/application.yaml` path and create `<name>-website`
+automatically.
 
 ## Secrets
 
