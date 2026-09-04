@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-this-website
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/chrispsheehan/backstage-sandbox.git
+    targetRevision: main
+    path: apps/test-this/crossplane
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps-test-this
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
