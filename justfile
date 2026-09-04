@@ -40,6 +40,17 @@ bootstrap-cluster:
           --agents 0 \
           --wait \
           --k3s-arg '--disable=traefik@server:0'
+    else
+        cluster_servers="$(k3d cluster list | awk '$1 == "{{ CLUSTER_NAME }}" { print $2 }')"
+        if [[ -n "${cluster_servers}" && "${cluster_servers}" != "1/1" ]]; then
+            k3d cluster start {{ CLUSTER_NAME }}
+        fi
+    fi
+
+    cluster_server="$(kubectl config view -o jsonpath='{.clusters[?(@.name=="k3d-{{ CLUSTER_NAME }}")].cluster.server}')"
+    if [[ "${cluster_server}" =~ ^https://0\.0\.0\.0:([0-9]+)$ ]]; then
+        kubectl config set-cluster k3d-{{ CLUSTER_NAME }} --server="https://127.0.0.1:${BASH_REMATCH[1]}" >/dev/null
+        echo "Updated kubeconfig endpoint for k3d-{{ CLUSTER_NAME }} to https://127.0.0.1:${BASH_REMATCH[1]}."
     fi
 
     kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
@@ -315,11 +326,32 @@ build-backstage-image:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    docker build \
+    mkdir -p "{{ LAB_DIR }}"
+    build_log="{{ LAB_DIR }}/build-backstage-image.log"
+
+    if ! docker build \
       --tag backstage-lab:dev \
       --target backstage \
       --file "{{ PROJECT_DIR }}/Dockerfile" \
-      "{{ PROJECT_DIR }}"
+      "{{ PROJECT_DIR }}" 2>&1 | tee "${build_log}"; then
+        if grep -q 'The lockfile would have been modified by this install' "${build_log}"; then
+            echo "Detected stale backstage/yarn.lock; refreshing it in Docker and retrying."
+            docker run --rm \
+              --user "$(id -u):$(id -g)" \
+              --volume "{{ PROJECT_DIR }}/backstage:/app" \
+              --workdir /app \
+              node:24-trixie-slim \
+              sh -lc 'corepack enable >/dev/null 2>&1 && yarn install'
+
+            docker build \
+              --tag backstage-lab:dev \
+              --target backstage \
+              --file "{{ PROJECT_DIR }}/Dockerfile" \
+              "{{ PROJECT_DIR }}"
+        else
+            exit 1
+        fi
+    fi
 
     k3d image import backstage-lab:dev -c {{ CLUSTER_NAME }} --mode direct
 

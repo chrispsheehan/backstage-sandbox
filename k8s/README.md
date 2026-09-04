@@ -26,6 +26,16 @@ Crossplane core. `just start` builds/imports the Backstage image, configures
 repo access for Argo CD, and deploys the Backstage application into the
 cluster.
 
+On some local `k3d` setups, the generated kubeconfig server for
+`k3d-platform-lab` can be `https://0.0.0.0:<port>`. The bootstrap flow
+rewrites that entry to `https://127.0.0.1:<port>` before running `kubectl`,
+because `0.0.0.0` is only a bind address and causes API validation failures
+when used as a client endpoint.
+
+The same bootstrap path also starts an existing stopped `platform-lab` cluster
+before applying manifests, so rerunning infra bootstrap works after
+`just stop-cluster`.
+
 If repo root `.env` contains `AUTH_GITHUB_CLIENT_ID` and
 `AUTH_GITHUB_CLIENT_SECRET`, bootstrap also configures Argo CD Dex to use the
 same GitHub OAuth app as local Backstage. That app must include callback URL

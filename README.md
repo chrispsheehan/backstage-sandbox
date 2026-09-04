@@ -94,6 +94,11 @@ first if `yarn` isn't already on `PATH`, since `create-app` requires Yarn.
 so they do not require a local Node toolchain after the scaffold already
 exists.
 
+If the scaffold manifests under `backstage/` drift from `backstage/yarn.lock`,
+`just build-backstage-image` detects the immutable-install failure, refreshes
+the lockfile in a disposable `node:24-trixie-slim` container, and retries the
+image build automatically.
+
 The Backstage runtime image is currently large enough that `k3d`'s default
 tools-node import path may get killed during `docker save` on some local
 machines. This repo uses `k3d image import --mode direct` to avoid that extra
@@ -103,6 +108,16 @@ tarball hop.
 `http://localhost:7007` via `kubectl port-forward`, not from a local source
 process. `just bootstrap-cluster` is infra-only; it does not deploy or refresh
 the Backstage application.
+
+Some `k3d` installs write the cluster endpoint into kubeconfig as
+`https://0.0.0.0:<port>`. That wildcard bind address is not reachable as a
+client target, so `just bootstrap-cluster` normalizes this repo's
+`k3d-platform-lab` kubeconfig entry to `https://127.0.0.1:<port>` before it
+runs `kubectl`.
+
+If the `platform-lab` cluster already exists but is stopped, `just
+bootstrap-cluster` starts it instead of assuming the API server is already
+reachable.
 
 Prerequisites: Docker, `just`, `kubectl`, `helm`, `k3d`, and GitHub
 authentication through `gh auth login`.
