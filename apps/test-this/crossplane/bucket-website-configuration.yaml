@@ -1,0 +1,15 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketWebsiteConfiguration
+metadata:
+  name: test-this
+  namespace: apps-test-this
+spec:
+  forProvider:
+    region: eu-west-2
+    bucketRef:
+      name: test-this
+    indexDocument:
+      suffix: index.html
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig
