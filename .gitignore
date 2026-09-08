@@ -1,3 +1,10 @@
 .lab/
 .env
 /backstage
+.terraform/
+.terragrunt-cache/
+.terraform.lock.hcl
+terragrunt.tfplan
+terragrunt.plan.json
+infra/live/**/backend.tf
+infra/live/**/provider_aws.tf
