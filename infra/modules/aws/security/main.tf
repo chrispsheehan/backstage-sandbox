@@ -1,10 +1,10 @@
 resource "aws_security_group" "platform" {
   name        = "${var.base_name}-platform"
-  description = "Public HTTP ingress for the development k3s host"
+  description = "Public HTTP ingress for the development platform host"
   vpc_id      = data.aws_vpc.this.id
 
   ingress {
-    description = "Traefik HTTP ingress"
+    description = "Reserved platform HTTP ingress"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
