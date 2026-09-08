@@ -83,7 +83,7 @@ Argo CD local auth is configured for convenience rather than strict isolation:
 - Backstage uses the same GitHub OAuth app, but on callback URL
   `http://localhost:7007/api/auth/github/handler/frame`.
 - If this repo is private, Argo CD also needs repository credentials; use
-  `gh auth login` locally or set `GITHUB_TOKEN` in `.env`.
+  `gh auth login` locally.
 
 You can reapply the GitHub SSO wiring without rebuilding the cluster:
 

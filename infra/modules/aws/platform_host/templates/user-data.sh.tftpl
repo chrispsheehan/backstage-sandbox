@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec > >(tee /var/log/platform-bootstrap.log | logger -t platform-bootstrap -s 2>/dev/console) 2>&1
+
+AWS_REGION="${aws_region}"
+# Replacing the host when copied repo content changes is intentional for this disposable PoC.
+PLATFORM_REPO_CONTENT_HASH="${platform_repo_content_hash}"
+
+dnf install -y awscli2 docker gzip tar unzip
+systemctl enable --now docker
+usermod -aG docker ec2-user
+
+printf '%s' "${bootstrap_script_base64gzip}" | base64 --decode | gzip --decompress >/usr/local/sbin/bootstrap-platform-host
+chmod 0755 /usr/local/sbin/bootstrap-platform-host
+
+install -d -m 0755 /opt/backstage-sandbox
+until aws s3 cp "${platform_repo_s3_uri}" /tmp/platform-repo.zip --region "$AWS_REGION"; do
+  sleep 10
+done
+unzip -q /tmp/platform-repo.zip -d /opt/backstage-sandbox
+chown -R ec2-user:ec2-user /opt/backstage-sandbox
+
+export AWS_REGION PLATFORM_REPO_CONTENT_HASH
+/usr/local/sbin/bootstrap-platform-host
+
+echo "Platform bootstrap completed."

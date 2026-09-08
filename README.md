@@ -1,6 +1,6 @@
 # Ephemeral Platform Lab
 
-This repo implements a local-only platform lab built around four components:
+This repo implements a local-first platform lab built around four components:
 
 - `k3d` running a disposable single-node `k3s` cluster on Docker
 - Argo CD for local GitOps experiments
@@ -8,6 +8,14 @@ This repo implements a local-only platform lab built around four components:
 - Backstage deployed into the cluster by Argo CD
 
 The design is intentionally ephemeral. Rebuilding from scratch is the normal workflow, not an exception.
+
+An optional dev-only AWS deployment provides a blank EC2 workstation with an
+Elastic IP and SSM access. It installs Docker, kubectl, Helm, and k3d, then
+copies the repo's `config/` and `k8s/` trees to the host. It does not create a
+cluster or apply anything. It deliberately avoids EKS, load balancers, NAT
+gateways, and hosted zones. See
+[infra/README.md](infra/README.md) for its architecture, prerequisites, cost,
+secret flow, and Terragrunt commands.
 
 ## Install Prerequisites (macOS / Homebrew)
 
@@ -26,6 +34,7 @@ Node 24 also works if you already have it on `PATH`.
 - [config/README.md](config/README.md) explains how repo-owned catalog data overrides the scaffold's example data.
 - [crossplane/README.md](crossplane/README.md) explains the minimal Crossplane setup currently installed by bootstrap.
 - [k8s/README.md](k8s/README.md) explains the cluster bootstrap order, Argo CD ownership, and local access pattern.
+- [infra/README.md](infra/README.md) explains the optional dev EC2 workstation.
 - `justfile` contains the local bootstrap, auth, image-build, deploy, and reset commands.
 
 ## Recommended Shape

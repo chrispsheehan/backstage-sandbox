@@ -184,6 +184,7 @@ backstage-cluster-auth:
 
     kubectl create namespace backstage --dry-run=client -o yaml | kubectl apply -f -
     kubectl -n backstage create secret generic backstage-secrets \
+      --from-literal=APP_BASE_URL="http://localhost:7007" \
       --from-literal=BACKEND_SECRET="${BACKEND_SECRET:-local-dev-backend-secret}" \
       --from-literal=AUTH_GITHUB_CLIENT_ID="${AUTH_GITHUB_CLIENT_ID}" \
       --from-literal=AUTH_GITHUB_CLIENT_SECRET="${AUTH_GITHUB_CLIENT_SECRET}" \
@@ -191,6 +192,64 @@ backstage-cluster-auth:
       -o yaml | kubectl apply -f -
 
     echo "Updated Secret backstage/backstage-secrets."
+
+# Run one Terragrunt operation for a dev AWS stack, for example:
+# just tg dev aws/platform_host plan
+tg env module op:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ PROJECT_DIR }}/infra/live/{{ env }}/{{ module }}"
+    if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
+        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+        export AWS_ACCOUNT_ID
+    fi
+    export TG_NON_INTERACTIVE=true
+    case "{{ op }}" in
+        init|plan*|apply*) export TG_BACKEND_BOOTSTRAP=true ;;
+    esac
+    terragrunt {{ op }}
+
+# Run a Terragrunt operation across the selected environment.
+tg-all env op:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ PROJECT_DIR }}/infra/live/{{ env }}"
+    if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
+        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+        export AWS_ACCOUNT_ID
+    fi
+    export TG_NON_INTERACTIVE=true
+    case "{{ op }}" in
+        init|plan*|apply*) export TG_BACKEND_BOOTSTRAP=true ;;
+    esac
+    terragrunt run --all {{ op }}
+
+# Format Terraform and Terragrunt files.
+infra-format:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    terraform fmt -recursive "{{ PROJECT_DIR }}/infra"
+    terragrunt hcl fmt --working-dir "{{ PROJECT_DIR }}/infra"
+
+# Apply only the security group and the base dev workstation.
+dev-deploy:
+    just tg dev aws/security apply
+    just tg dev aws/platform_host apply
+
+# Destroy billable dev runtime resources while retaining the protected secret.
+dev-destroy:
+    just tg dev aws/platform_host destroy
+    just tg dev aws/security destroy
+    just tg dev aws/ecr destroy
+
+# Open a Session Manager shell on the dev platform workstation.
+dev-shell:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
+    cd "{{ PROJECT_DIR }}/infra/live/dev/aws/platform_host"
+    instance_id="$(terragrunt output -raw instance_id)"
+    aws ssm start-session --region "${AWS_REGION:-eu-west-2}" --target "${instance_id}"
 
 # Configure local Argo CD GitHub SSO from repo root .env.
 argocd-github-auth:

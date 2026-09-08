@@ -4,9 +4,10 @@ These instructions apply to the entire repository.
 
 ## What This Repo Is
 
-A local-only platform lab: `k3d` + Argo CD + Crossplane + Backstage. It is
-intentionally ephemeral — rebuilding from scratch is the normal workflow, not
-an exception. See `README.md` for the full architecture and setup.
+A local-first platform lab: `k3d` + Argo CD + Crossplane + Backstage, with an
+optional dev-only EC2/k3s deployment. It is intentionally ephemeral —
+rebuilding from scratch is the normal workflow, not an exception. See
+`README.md` for the full architecture and setup.
 
 ## Where To Look
 
@@ -20,6 +21,7 @@ Read the nearest owning doc for the area you're touching before editing.
 | Repo-owned catalog data that overrides the scaffold's examples | `config/README.md` |
 | Minimal Crossplane bootstrap setup | `crossplane/README.md` |
 | Cluster bootstrap order, Argo CD ownership | `k8s/README.md` |
+| Optional dev AWS deployment | `infra/README.md` |
 | Backstage scaffolding / default-file questions | [backstage.io getting-started docs](https://backstage.io/docs/getting-started/) |
 
 Loading order: `AGENTS.md` → `README.md` → the one nested README for the
@@ -54,4 +56,6 @@ capability areas just because they're nearby.
 
 - Full cluster workflow needs Docker, `k3d`, `kubectl`, `helm`.
 - `just bootstrap-cluster` needs `k3d`, `kubectl`, and `helm`; `just dev` only needs Docker plus a local Node 22 or 24 toolchain. `just start` needs both sets, since it bootstraps the cluster and then starts local Backstage.
+- The optional AWS deployment needs Terraform, Terragrunt, AWS CLI, Docker
+  Buildx, `jq`, `gh`, and `just`.
 - If a task depends on the local Docker daemon and it isn't running, say so up front rather than guessing at output.
