@@ -18,8 +18,4 @@ resource "aws_security_group" "platform" {
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
-
-  tags = {
-    Name = "${var.base_name}-platform"
-  }
 }

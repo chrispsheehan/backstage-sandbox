@@ -55,6 +55,7 @@ provider "aws" {
       Project     = "${local.project_name}"
       Environment = "${local.environment}"
       ManagedBy   = "terraform"
+      Name        = "${local.base_name}-platform"
     }
   }
 }
@@ -75,4 +76,3 @@ inputs = merge(
     state_bucket                 = local.state_bucket
   }
 )
-
