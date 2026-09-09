@@ -125,9 +125,33 @@ just dev-destroy
 
 ## Cost And Security Boundaries
 
-At current `eu-west-2` on-demand rates, the host, 30 GiB disk, and public IPv4
-address are approximately `$0.0464/hour` or `$33.88/month`, plus small ECR,
-S3 state, generated-resource, request, and data-transfer charges.
+Estimated `eu-west-2` cost, checked 9 September 2026:
+
+| Resource | Assumption | Hourly | Monthly (730 hours) |
+| --- | --- | ---: | ---: |
+| EC2 | One Linux `t4g.medium`, on demand | `$0.03760` | `$27.45` |
+| EBS | 30 GiB gp3 at `$0.0928/GiB-month` | `$0.00381` | `$2.78` |
+| Public IPv4 | One Elastic IP | `$0.00500` | `$3.65` |
+| Session Manager | Standard EC2 managed node | `$0.00000` | `$0.00` |
+| ECR and S3 | Empty ECR plus the small bootstrap ZIP and state files | Usage based | `<$0.01` |
+| **Estimated baseline** | Host running continuously | **`$0.04641`** | **`$33.88`** |
+
+That baseline is about `$1.11/day`. It excludes outbound data transfer,
+requests beyond this small bootstrap, stored container images, resources later
+created through Crossplane, and T4g surplus CPU-credit charges if sustained CPU
+use exceeds the instance baseline.
+
+Stopping rather than destroying the instance removes the EC2 compute charge,
+but the 30 GiB disk and public IPv4 continue to cost approximately
+`$0.00881/hour` or `$6.43/month`. `just dev-destroy` removes the host, disk,
+Elastic IP, ECR repository, bootstrap object, and force-destroy bootstrap
+bucket; the shared Terragrunt state bucket remains and incurs only its small
+usage-based S3 charge.
+
+Sources: [AWS EC2 On-Demand pricing](https://aws.amazon.com/ec2/pricing/on-demand/),
+[AWS EBS pricing](https://aws.amazon.com/ebs/pricing/),
+[AWS VPC public IPv4 pricing](https://aws.amazon.com/vpc/pricing/), and
+[AWS Systems Manager pricing](https://aws.amazon.com/systems-manager/pricing/).
 
 The instance profile can read only its ZIP from the dedicated bootstrap bucket,
 in addition to the AWS-managed permissions needed for Session Manager.
