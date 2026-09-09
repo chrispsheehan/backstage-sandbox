@@ -7,8 +7,9 @@ environment.
 
 ## Shape
 
-The base `just dev-deploy` deployment creates:
+The `just dev-deploy` deployment creates:
 
+- a private ECR repository retained for later image work
 - one `t4g.medium` Amazon Linux 2023 EC2 workstation
 - one encrypted 30 GiB gp3 root volume
 - an Elastic IP
@@ -16,9 +17,6 @@ The base `just dev-deploy` deployment creates:
   through SSM
 - a private, encrypted bootstrap S3 bucket with force-destroy enabled
 - an instance role for SSM and read-only bootstrap-file download
-
-The repo retains a separate ECR stack for later image work, but `just
-dev-deploy` does not apply it.
 
 Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
 it to the platform-host module. EC2 user data installs Docker and AWS CLI,
@@ -74,23 +72,20 @@ GitHub credentials and the repo-root `.env` are not needed for host bootstrap.
 
 ## Commands
 
-Plan all dev stacks, including the optional ECR repository:
+Plan all dev stacks:
 
 ```bash
 just tg-all dev plan
 ```
 
-Apply the base host and its supporting resources:
+Apply all dev stacks in dependency order:
 
 ```bash
 just dev-deploy
 ```
 
-Apply every retained dev stack instead of the minimal base:
-
-```bash
-just tg-all dev apply
-```
+Terragrunt can apply ECR and the security group in parallel, then applies the
+platform host after both dependencies succeed. Destroy uses the reverse order.
 
 Get the public URL or open a host shell:
 
@@ -122,7 +117,7 @@ manually. Once Argo CD is configured, it reads `apps/` from Git rather than the
 EC2 filesystem. Crossplane definitions can follow the same GitOps path later.
 The AWS deployment deliberately makes no further choices for you.
 
-Destroy the billable live stacks when the PoC is idle:
+Destroy all dev stacks in reverse dependency order when the PoC is idle:
 
 ```bash
 just dev-destroy

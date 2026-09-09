@@ -41,16 +41,13 @@ infra-format:
     terraform fmt -recursive "{{ PROJECT_DIR }}/infra"
     terragrunt hcl fmt --working-dir "{{ PROJECT_DIR }}/infra"
 
-# Apply only the security group and the base dev workstation.
+# Apply all dev stacks in Terragrunt dependency order.
 dev-deploy:
-    just tg dev aws/security apply
-    just tg dev aws/platform_host apply
+    just tg-all dev apply
 
-# Destroy the dev workstation, security group, and optional ECR repository.
+# Destroy all dev stacks in reverse Terragrunt dependency order.
 dev-destroy:
-    just tg dev aws/platform_host destroy
-    just tg dev aws/security destroy
-    just tg dev aws/ecr destroy
+    just tg-all dev destroy
 
 # Open a Session Manager shell on the dev platform workstation.
 dev-shell:

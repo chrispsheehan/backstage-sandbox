@@ -2,8 +2,9 @@
 
 Creates the single-node dev platform host, its Elastic IP, instance profile,
 and least-cost bootstrap surface. It consumes the security group owned by the
-separate `security` stack and has no dependency on the optional ECR or runtime
-secret stacks.
+separate `security` stack. Its Terragrunt live configuration also declares ECR
+as an order-only dependency, reserving that integration point without passing
+an unused repository output into this module.
 
 The module discovers the existing VPC by exact `Name` tag and public subnets by
 `*public*` `Name` tag. EC2 user data installs Docker, kubectl, Helm, and k3d,

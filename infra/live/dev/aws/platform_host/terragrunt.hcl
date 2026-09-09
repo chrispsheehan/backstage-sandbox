@@ -10,6 +10,10 @@ locals {
   )
 }
 
+dependencies {
+  paths = ["../ecr"]
+}
+
 dependency "security" {
   config_path = "../security"
 
