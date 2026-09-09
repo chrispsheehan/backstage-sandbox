@@ -14,9 +14,6 @@ tg env module op:
         export AWS_ACCOUNT_ID
     fi
     export TG_NON_INTERACTIVE=true
-    case "{{ op }}" in
-        init|plan*|apply*) export TG_BACKEND_BOOTSTRAP=true ;;
-    esac
     terragrunt {{ op }}
 
 # Run a Terragrunt operation across the selected environment.
@@ -29,9 +26,6 @@ tg-all env op:
         export AWS_ACCOUNT_ID
     fi
     export TG_NON_INTERACTIVE=true
-    case "{{ op }}" in
-        init|plan*|apply*) export TG_BACKEND_BOOTSTRAP=true ;;
-    esac
     terragrunt run --all {{ op }}
 
 # Format Terraform and Terragrunt files.

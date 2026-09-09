@@ -58,14 +58,15 @@ s3://<account>-<region>-backstage-sandbox-tfstate/dev/aws/<module>/terraform.tfs
 ```
 
 S3 native lock files sit next to state with the `.tflock` suffix. Terragrunt
-creates the state bucket when needed. Destroying the live stacks does not
-automatically remove that shared state bucket.
+does not bootstrap this backend as part of the normal commands, so the shared
+state bucket must already exist. Destroying the live stacks does not remove it.
 
 ## Prerequisites
 
 - Terraform 1.11 or newer, Terragrunt, AWS CLI, and `just`
 - local AWS credentials authorized to manage EC2, ECR, IAM, SSM and the state
   bucket
+- the Terragrunt state bucket described above already created
 - `AWS_REGION=eu-west-2`, unless the default is suitable
 
 GitHub credentials and the repo-root `.env` are not needed for host bootstrap.
