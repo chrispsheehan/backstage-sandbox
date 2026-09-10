@@ -30,6 +30,9 @@ resource "aws_ssm_document" "run_shell" {
     inputs = {
       runAsEnabled     = true
       runAsDefaultUser = "ec2-user"
+      shellProfile = {
+        linux = "export PATH=/usr/local/bin:/usr/bin:/bin; cloud-init status --wait && cd /opt/backstage-sandbox"
+      }
     }
   })
 }

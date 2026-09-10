@@ -17,7 +17,3 @@ output "public_ip" {
 output "backstage_url" {
   value = "http://${aws_eip.this.public_ip}"
 }
-
-output "session_command" {
-  value = "aws ssm start-session --region ${var.aws_region} --target ${aws_instance.this.id} --document-name ${aws_ssm_document.run_shell.name}"
-}

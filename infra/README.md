@@ -7,7 +7,7 @@ environment.
 
 ## Shape
 
-The `just dev-deploy` deployment creates:
+The `just deploy` deployment creates:
 
 - a private ECR repository retained for later image work
 - one `t4g.medium` Amazon Linux 2023 EC2 workstation
@@ -84,7 +84,7 @@ just tg-all dev plan
 Apply all dev stacks in dependency order:
 
 ```bash
-just dev-deploy
+just deploy
 ```
 
 Terragrunt can apply ECR and the security group in parallel, then applies the
@@ -94,13 +94,22 @@ Get the public URL or open a host shell:
 
 ```bash
 just tg dev aws/platform_host output
-just dev-shell
+just shell
 ```
 
-Terraform creates a lab-specific Session document, and `just dev-shell` uses it
+Terraform creates a lab-specific Session document, and `just shell` uses it
 to start directly as `ec2-user`. This gives the session the correct Docker
-group membership, `/usr/local/bin` path, and k3d kubeconfig without changing
-the account-wide Session Manager defaults for unrelated instances.
+group membership and k3d kubeconfig. Its shell profile adds `/usr/local/bin` to
+`PATH`, waits for cloud-init, and starts in `/opt/backstage-sandbox`. A session
+requested during startup therefore waits instead of returning an unready
+prompt. This does not change the account-wide Session Manager defaults for
+unrelated instances.
+
+EC2's native `running` state does not include SSM registration or user-data
+completion. User data stops the SSM agent before bootstrap and restarts it only
+after k3d, Argo CD, and Crossplane core are ready. `just shell` waits for the
+instance to report `Online` to Systems Manager, making that the platform-ready
+signal. The session profile also checks cloud-init before returning the prompt.
 
 On the host, inspect the bootstrap result with:
 
@@ -122,7 +131,7 @@ The copied working set is:
 ```
 
 User data runs the shared bootstrap automatically as `ec2-user`. A session
-opened with `just dev-shell` starts as that account, so the lab is immediately
+opened with `just shell` starts as that account, so the lab is immediately
 available:
 
 ```bash
@@ -141,7 +150,7 @@ The AWS deployment deliberately makes no further choices for you.
 Destroy all dev stacks in reverse dependency order when the PoC is idle:
 
 ```bash
-just dev-destroy
+just destroy
 ```
 
 ## Cost And Security Boundaries
@@ -164,7 +173,7 @@ use exceeds the instance baseline.
 
 Stopping rather than destroying the instance removes the EC2 compute charge,
 but the 30 GiB disk and public IPv4 continue to cost approximately
-`$0.00881/hour` or `$6.43/month`. `just dev-destroy` removes the host, disk,
+`$0.00881/hour` or `$6.43/month`. `just destroy` removes the host, disk,
 Elastic IP, ECR repository, bootstrap object, and force-destroy bootstrap
 bucket; the shared Terragrunt state bucket remains and incurs only its small
 usage-based S3 charge.

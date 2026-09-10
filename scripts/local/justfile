@@ -67,6 +67,39 @@ _start:
     echo "Argo CD: http://localhost:8080"
     echo "Backstage: http://localhost:7007"
 
+# Root `just shell` delegates to this local SSM workflow implementation.
+_shell:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    aws_region="${AWS_REGION:-eu-west-2}"
+    export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
+
+    cd "{{ PROJECT_DIR }}/infra/live/dev/aws/platform_host"
+    instance_id="$(terragrunt output -raw instance_id)"
+    session_document_name="$(terragrunt output -raw session_document_name)"
+
+    echo "Waiting for ${instance_id} to register with Systems Manager..."
+    for _ in $(seq 1 120); do
+        ping_status="$(aws ssm describe-instance-information \
+          --region "${aws_region}" \
+          --filters "Key=InstanceIds,Values=${instance_id}" \
+          --query 'InstanceInformationList[0].PingStatus' \
+          --output text 2>/dev/null || true)"
+
+        if [[ "${ping_status}" == "Online" ]]; then
+            exec aws ssm start-session \
+              --region "${aws_region}" \
+              --target "${instance_id}" \
+              --document-name "${session_document_name}"
+        fi
+
+        sleep 5
+    done
+
+    echo "Timed out waiting for ${instance_id} to register with Systems Manager." >&2
+    exit 1
+
 stop:
     #!/usr/bin/env bash
     set -euo pipefail
