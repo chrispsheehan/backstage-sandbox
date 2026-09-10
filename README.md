@@ -9,10 +9,10 @@ This repo implements a local-first platform lab built around four components:
 
 The design is intentionally ephemeral. Rebuilding from scratch is the normal workflow, not an exception.
 
-An optional dev-only AWS deployment provides a blank EC2 workstation with an
-Elastic IP and SSM access. It installs Docker, kubectl, Helm, and k3d, then
-copies the repo's `config/`, `k8s/`, and shared `scripts/lab/` trees to the
-host. It does not create a cluster or apply anything. It deliberately avoids EKS, load balancers, NAT
+An optional dev-only AWS deployment provides an EC2 platform lab with an
+Elastic IP and SSM access. It installs Docker, kubectl, Helm, and k3d; copies
+the repo's `config/`, `k8s/`, and shared `scripts/lab/` trees to the host; then
+creates a k3d cluster with Argo CD and Crossplane core. It deliberately avoids EKS, load balancers, NAT
 gateways, and hosted zones. See
 [infra/README.md](infra/README.md) for its architecture, prerequisites, cost,
 secret flow, and Terragrunt commands.

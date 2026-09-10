@@ -18,4 +18,4 @@ tar -xzf /tmp/helm.tar.gz -C /tmp
 install -m 0755 /tmp/linux-arm64/helm /usr/local/bin/helm
 
 echo "Bootstrap tools installed: Docker, kubectl, Helm, and k3d."
-echo "Repo content is available under /opt/backstage-sandbox; no cluster or manifests were created."
+echo "Repo content is available under /opt/backstage-sandbox."

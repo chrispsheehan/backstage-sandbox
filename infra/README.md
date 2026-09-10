@@ -21,9 +21,10 @@ The `just dev-deploy` deployment creates:
 Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
 it to the platform-host module. EC2 user data installs Docker, uses the AWS CLI
 already supplied by Amazon Linux 2023, runs that script to install kubectl,
-Helm, and k3d, and stops there. It does not
-create a cluster or install Crossplane, Argo CD, External Secrets Operator,
-Backstage, ingress, or any manifests.
+Helm, and k3d, then runs the shared lab bootstrap as `ec2-user`. That creates a
+k3d cluster and installs Argo CD and Crossplane core. It does not install the
+AWS Crossplane providers, External Secrets Operator, Backstage, ingress, or
+application manifests.
 
 Terraform also packages the current contents of `config/`, `k8s/`, and
 `scripts/lab/` into one ZIP object in the dedicated bootstrap bucket. User data expands it at
@@ -115,16 +116,18 @@ The copied working set is:
 /opt/backstage-sandbox/scripts/lab
 ```
 
-From this point, create the k3d cluster with Argo CD and Crossplane core by
-running:
+User data runs the shared bootstrap automatically as `ec2-user`. After opening
+an SSM session, switch to that account to use its Docker access and kubeconfig:
 
 ```bash
 sudo -iu ec2-user
-/opt/backstage-sandbox/scripts/lab/bootstrap-cluster.sh
+kubectl get nodes
+kubectl get pods -A
 ```
 
-The `ec2-user` account owns the copied files and belongs to the `docker` group;
-the default Session Manager `ssm-user` account does not.
+The default Session Manager `ssm-user` account does not own that kubeconfig or
+belong to the `docker` group. The shared bootstrap remains safe to rerun
+manually from the `ec2-user` shell.
 
 Then apply or adapt the tracked YAML manually. Once Argo CD is configured, it reads `apps/` from Git rather than the
 EC2 filesystem. Crossplane definitions can follow the same GitOps path later.
