@@ -19,6 +19,21 @@ resource "aws_iam_instance_profile" "this" {
   role = aws_iam_role.this.name
 }
 
+resource "aws_ssm_document" "run_shell" {
+  name          = "${var.base_name}-run-shell"
+  document_type = "Session"
+
+  content = jsonencode({
+    schemaVersion = "1.0"
+    description   = "Start a Backstage sandbox shell as ec2-user"
+    sessionType   = "Standard_Stream"
+    inputs = {
+      runAsEnabled     = true
+      runAsDefaultUser = "ec2-user"
+    }
+  })
+}
+
 data "archive_file" "platform_repo" {
   type        = "zip"
   output_path = "${path.root}/.terraform/platform-repo.zip"

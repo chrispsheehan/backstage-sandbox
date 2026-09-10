@@ -97,6 +97,11 @@ just tg dev aws/platform_host output
 just dev-shell
 ```
 
+Terraform creates a lab-specific Session document, and `just dev-shell` uses it
+to start directly as `ec2-user`. This gives the session the correct Docker
+group membership, `/usr/local/bin` path, and k3d kubeconfig without changing
+the account-wide Session Manager defaults for unrelated instances.
+
 On the host, inspect the bootstrap result with:
 
 ```bash
@@ -116,18 +121,18 @@ The copied working set is:
 /opt/backstage-sandbox/scripts/lab
 ```
 
-User data runs the shared bootstrap automatically as `ec2-user`. After opening
-an SSM session, switch to that account to use its Docker access and kubeconfig:
+User data runs the shared bootstrap automatically as `ec2-user`. A session
+opened with `just dev-shell` starts as that account, so the lab is immediately
+available:
 
 ```bash
-sudo -iu ec2-user
 kubectl get nodes
 kubectl get pods -A
 ```
 
-The default Session Manager `ssm-user` account does not own that kubeconfig or
-belong to the `docker` group. The shared bootstrap remains safe to rerun
-manually from the `ec2-user` shell.
+Sessions opened without the lab-specific document still use the default
+`ssm-user`, which does not own that kubeconfig or belong to the `docker` group.
+The shared bootstrap remains safe to rerun manually from the `ec2-user` shell.
 
 Then apply or adapt the tracked YAML manually. Once Argo CD is configured, it reads `apps/` from Git rather than the
 EC2 filesystem. Crossplane definitions can follow the same GitOps path later.

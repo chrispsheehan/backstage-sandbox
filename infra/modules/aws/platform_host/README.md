@@ -16,7 +16,8 @@ repository credentials are placed on the host.
 
 User data runs the shared lab script as `ec2-user`, which owns the generated
 kubeconfig and has Docker access. The script can be rerun manually as that
-account.
+account. A module-owned Session document lets `just dev-shell` start directly
+as `ec2-user` without changing the account-wide Session Manager preferences.
 
 Changing the copied files or user data replaces the disposable host. Any
 cluster and runtime data created manually on it are therefore ephemeral. The

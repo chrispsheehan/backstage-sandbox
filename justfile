@@ -62,4 +62,8 @@ dev-shell:
     export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
     cd "{{ PROJECT_DIR }}/infra/live/dev/aws/platform_host"
     instance_id="$(terragrunt output -raw instance_id)"
-    aws ssm start-session --region "${AWS_REGION:-eu-west-2}" --target "${instance_id}"
+    session_document_name="$(terragrunt output -raw session_document_name)"
+    aws ssm start-session \
+      --region "${AWS_REGION:-eu-west-2}" \
+      --target "${instance_id}" \
+      --document-name "${session_document_name}"
