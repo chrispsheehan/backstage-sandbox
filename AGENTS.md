@@ -55,7 +55,7 @@ capability areas just because they're nearby.
 ## Local Environment Assumptions
 
 - Full cluster workflow needs Docker, `k3d`, `kubectl`, `helm`.
-- `just bootstrap-cluster` needs `k3d`, `kubectl`, and `helm`; `just dev` only needs Docker plus a local Node 22 or 24 toolchain. `just start` needs both sets, since it bootstraps the cluster and then starts local Backstage.
+- `just setup` needs `k3d`, `kubectl`, and `helm`; `just dev` only needs Docker plus a local Node 22 or 24 toolchain. `just start` needs both sets, since it bootstraps the cluster and then starts local Backstage.
 - The optional AWS deployment needs Terraform, Terragrunt, AWS CLI, Docker
   Buildx, `jq`, `gh`, and `just`.
 - If a task depends on the local Docker daemon and it isn't running, say so up front rather than guessing at output.

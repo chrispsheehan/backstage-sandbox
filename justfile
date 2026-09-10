@@ -3,6 +3,18 @@ import 'scripts/local/justfile'
 default:
     @just --list
 
+# Bootstrap the local cluster through the owning local Justfile.
+setup:
+    just --justfile "{{ PROJECT_DIR }}/scripts/local/justfile" _bootstrap-cluster
+
+# Remove the local cluster, port-forwards, lab state, and Backstage image.
+local:
+    just --justfile "{{ PROJECT_DIR }}/scripts/local/justfile" reset
+
+# Run the complete local lab workflow through the owning local Justfile.
+start:
+    just --justfile "{{ PROJECT_DIR }}/scripts/local/justfile" _start
+
 # Run one Terragrunt operation for a dev AWS stack, for example:
 # just tg dev aws/platform_host plan
 tg env module op:

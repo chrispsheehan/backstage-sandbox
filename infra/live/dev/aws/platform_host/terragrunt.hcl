@@ -7,6 +7,7 @@ locals {
   platform_repo_paths = setunion(
     fileset(local.repo_root, "config/**"),
     fileset(local.repo_root, "k8s/**"),
+    fileset(local.repo_root, "scripts/lab/**"),
   )
 }
 

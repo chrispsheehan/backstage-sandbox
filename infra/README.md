@@ -19,13 +19,14 @@ The `just dev-deploy` deployment creates:
 - an instance role for SSM and read-only bootstrap-file download
 
 Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
-it to the platform-host module. EC2 user data installs Docker and AWS CLI,
-runs that script to install kubectl, Helm, and k3d, and stops there. It does not
+it to the platform-host module. EC2 user data installs Docker, uses the AWS CLI
+already supplied by Amazon Linux 2023, runs that script to install kubectl,
+Helm, and k3d, and stops there. It does not
 create a cluster or install Crossplane, Argo CD, External Secrets Operator,
 Backstage, ingress, or any manifests.
 
-Terraform also packages the current contents of `config/` and `k8s/` into one
-ZIP object in the dedicated bootstrap bucket. User data expands it at
+Terraform also packages the current contents of `config/`, `k8s/`, and
+`scripts/lab/` into one ZIP object in the dedicated bootstrap bucket. User data expands it at
 `/opt/backstage-sandbox` and makes it owned by `ec2-user`. S3 staging avoids
 EC2's small user-data limit while requiring no repository clone, Git
 installation, or GitHub credential. Changing any copied file replaces this
@@ -111,10 +112,21 @@ The copied working set is:
 ```text
 /opt/backstage-sandbox/config
 /opt/backstage-sandbox/k8s
+/opt/backstage-sandbox/scripts/lab
 ```
 
-From this point, create a k3d cluster and apply or adapt the tracked YAML
-manually. Once Argo CD is configured, it reads `apps/` from Git rather than the
+From this point, create the k3d cluster with Argo CD and Crossplane core by
+running:
+
+```bash
+sudo -iu ec2-user
+/opt/backstage-sandbox/scripts/lab/bootstrap-cluster.sh
+```
+
+The `ec2-user` account owns the copied files and belongs to the `docker` group;
+the default Session Manager `ssm-user` account does not.
+
+Then apply or adapt the tracked YAML manually. Once Argo CD is configured, it reads `apps/` from Git rather than the
 EC2 filesystem. Crossplane definitions can follow the same GitOps path later.
 The AWS deployment deliberately makes no further choices for you.
 

@@ -18,40 +18,13 @@ install:
     cd {{ PROJECT_DIR }}
     npx @backstage/create-app@latest
 
-# Bootstrap k3d, Argo CD, and Crossplane.
-bootstrap-cluster:
+# Bootstrap k3d, Argo CD, Crossplane, and the local-only integrations.
+_bootstrap-cluster:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    for bin in kubectl helm k3d; do
-        command -v "${bin}" >/dev/null 2>&1 || {
-            echo "Missing required binary: ${bin}" >&2
-            exit 1
-        }
-    done
+    CLUSTER_NAME="{{ CLUSTER_NAME }}" "{{ PROJECT_DIR }}/scripts/lab/bootstrap-cluster.sh"
 
-    if ! k3d cluster list | awk 'NR > 1 { print $1 }' | grep -qx '{{ CLUSTER_NAME }}'; then
-        k3d cluster create {{ CLUSTER_NAME }} \
-          --servers 1 \
-          --agents 0 \
-          --wait \
-          --k3s-arg '--disable=traefik@server:0'
-    else
-        cluster_servers="$(k3d cluster list | awk '$1 == "{{ CLUSTER_NAME }}" { print $2 }')"
-        if [[ -n "${cluster_servers}" && "${cluster_servers}" != "1/1" ]]; then
-            k3d cluster start {{ CLUSTER_NAME }}
-        fi
-    fi
-
-    cluster_server="$(kubectl config view -o jsonpath='{.clusters[?(@.name=="k3d-{{ CLUSTER_NAME }}")].cluster.server}')"
-    if [[ "${cluster_server}" =~ ^https://0\.0\.0\.0:([0-9]+)$ ]]; then
-        kubectl config set-cluster k3d-{{ CLUSTER_NAME }} --server="https://127.0.0.1:${BASH_REMATCH[1]}" >/dev/null
-        echo "Updated kubeconfig endpoint for k3d-{{ CLUSTER_NAME }} to https://127.0.0.1:${BASH_REMATCH[1]}."
-    fi
-
-    kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
-    kubectl apply -n argocd --server-side --force-conflicts \
-      -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.2/manifests/install.yaml
     kubectl apply -f "{{ PROJECT_DIR }}/k8s/bootstrap/argocd/local-overrides.yaml"
     if [[ -f "{{ PROJECT_DIR }}/.env" ]]; then
         set -a
@@ -71,26 +44,18 @@ bootstrap-cluster:
     kubectl -n argocd rollout status deployment/argocd-dex-server --timeout=300s
     kubectl -n argocd rollout status deployment/argocd-server --timeout=300s
 
-    helm repo add crossplane-stable https://charts.crossplane.io/stable >/dev/null 2>&1 || true
-    helm repo update >/dev/null
-    helm upgrade --install crossplane crossplane-stable/crossplane \
-      --namespace crossplane-system \
-      --create-namespace \
-      --version 2.3.4
-    kubectl -n crossplane-system rollout status deployment/crossplane --timeout=300s
-    kubectl -n crossplane-system rollout status deployment/crossplane-rbac-manager --timeout=300s
     kubectl apply -k "{{ PROJECT_DIR }}/crossplane/providers"
     kubectl wait --for=condition=Healthy provider/provider-family-aws --timeout=300s
     kubectl wait --for=condition=Healthy provider/provider-aws-s3 --timeout=300s
 
     just ensure-argocd-port-forward
 
-# Bootstrap the cluster, wire local auth, deploy Backstage through Argo CD, and start port-forwards.
-start:
+# Root `just start` delegates to this local workflow implementation.
+_start:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    just bootstrap-cluster
+    just _bootstrap-cluster
     just crossplane-aws-auth ~/.aws/credentials
     just backstage-cluster-auth
     just argocd-repo-auth

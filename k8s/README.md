@@ -20,11 +20,13 @@ This repo uses a deliberately split ownership model:
 
 ## Bootstrap Order
 
-1. `just bootstrap-cluster`
+1. `just setup`
 2. Run `just start` to deploy Backstage through Argo CD, or open the Argo CD UI on `http://localhost:8080` after infra bootstrap.
 
-The bootstrap script creates the `k3d` cluster, installs Argo CD, and installs
-Crossplane core. `just start` builds/imports the Backstage image, configures
+The shared `scripts/lab/bootstrap-cluster.sh` script creates the `k3d` cluster,
+installs Argo CD, and installs Crossplane core. The local Just recipe then
+applies the AWS Crossplane providers and local Argo CD configuration. `just
+start` builds/imports the Backstage image, configures
 repo access for Argo CD, and deploys the Backstage application into the
 cluster.
 

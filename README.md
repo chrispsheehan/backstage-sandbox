@@ -11,8 +11,8 @@ The design is intentionally ephemeral. Rebuilding from scratch is the normal wor
 
 An optional dev-only AWS deployment provides a blank EC2 workstation with an
 Elastic IP and SSM access. It installs Docker, kubectl, Helm, and k3d, then
-copies the repo's `config/` and `k8s/` trees to the host. It does not create a
-cluster or apply anything. It deliberately avoids EKS, load balancers, NAT
+copies the repo's `config/`, `k8s/`, and shared `scripts/lab/` trees to the
+host. It does not create a cluster or apply anything. It deliberately avoids EKS, load balancers, NAT
 gateways, and hosted zones. See
 [infra/README.md](infra/README.md) for its architecture, prerequisites, cost,
 secret flow, and Terragrunt commands.
@@ -38,6 +38,8 @@ Node 24 also works if you already have it on `PATH`.
 - `justfile` exposes the AWS/Terragrunt commands and imports the local recipes.
 - `scripts/local/justfile` owns the local k3d, auth, image-build, deploy, and
   reset recipes while preserving their existing root-level command names.
+- `scripts/lab/bootstrap-cluster.sh` owns the cluster, Argo CD, and Crossplane
+  core bootstrap shared by local and EC2 workflows.
 
 ## Recommended Shape
 
@@ -52,7 +54,7 @@ Node 24 also works if you already have it on `PATH`.
 `just start` is the one-command local setup path: it bootstraps `k3d`, Argo CD,
 and Crossplane, wires local GitHub auth, builds the Backstage image, imports it
 into `k3d`, and deploys Backstage into the cluster through Argo CD.
-`just bootstrap-cluster` is the infra-only path. Create `.env` from
+`just setup` is the infra-only path. Create `.env` from
 `.example.env` before running `just start`.
 
 `just deploy-backstage` also applies an Argo CD `ApplicationSet` that scans
@@ -100,8 +102,9 @@ unless you also plan to change the Backstage auth configuration.
 
 ```bash
 just install  # scaffold backstage/ and install dependencies (run once)
+just setup    # Bootstrap local k3d, Argo CD, and Crossplane without Backstage
+just local    # Delete the local cluster, port-forwards, lab state, and image
 just start    # Bootstrap cluster, deploy Backstage through Argo CD, and port-forward the UIs
-just bootstrap-cluster # Bootstrap k3d, Argo CD, and Crossplane
 just crossplane-aws-auth ~/.aws/credentials # Copy an AWS credentials file into Crossplane
 just argocd-github-auth # Wire local Argo CD Dex to the GitHub OAuth app in .env
 just argocd-repo-auth # Give Argo CD credentials to sync this repo when it is private
@@ -131,7 +134,7 @@ tarball hop.
 
 `just start` is the normal loop now. Backstage is served from the cluster on
 `http://localhost:7007` via `kubectl port-forward`, not from a local source
-process. `just bootstrap-cluster` is infra-only; it does not deploy or refresh
+process. `just setup` is infra-only; it does not deploy or refresh
 the Backstage application.
 
 Generated S3 site apps are registered automatically from their committed
@@ -140,12 +143,12 @@ has been run against the branch that contains them.
 
 Some `k3d` installs write the cluster endpoint into kubeconfig as
 `https://0.0.0.0:<port>`. That wildcard bind address is not reachable as a
-client target, so `just bootstrap-cluster` normalizes this repo's
+client target, so `just setup` normalizes this repo's
 `k3d-platform-lab` kubeconfig entry to `https://127.0.0.1:<port>` before it
 runs `kubectl`.
 
-If the `platform-lab` cluster already exists but is stopped, `just
-bootstrap-cluster` starts it instead of assuming the API server is already
+If the `platform-lab` cluster already exists but is stopped, `just setup`
+starts it instead of assuming the API server is already
 reachable.
 
 Prerequisites: Docker, `just`, `kubectl`, `helm`, `k3d`, and GitHub
@@ -205,7 +208,7 @@ service-scoped provider. The family provider supplies shared AWS
 repo's generated static-site templates.
 
 When `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` are set in `.env`,
-`just start` and `just bootstrap-cluster` configure Argo CD Dex for GitHub
+`just start` and `just setup` configure Argo CD Dex for GitHub
 sign-in on `http://localhost:8080` using the same OAuth app as Backstage. The
 repo-owned local RBAC override grants `role:admin` to authenticated users in
 this disposable lab.
