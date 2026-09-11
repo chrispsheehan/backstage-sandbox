@@ -12,6 +12,10 @@ systemctl stop amazon-ssm-agent
 
 # Restore diagnostic access if a later bootstrap step fails under `set -e`.
 restart_ssm_agent_on_exit() {
+  exit_code="$?"
+  if (( exit_code != 0 )); then
+    echo "Platform bootstrap failed with exit code $exit_code."
+  fi
   systemctl restart amazon-ssm-agent || true
 }
 trap restart_ssm_agent_on_exit EXIT

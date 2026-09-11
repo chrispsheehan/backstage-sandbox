@@ -3,6 +3,8 @@ kind: BucketPublicAccessBlock
 metadata:
   name: ${{ values.name }}
   namespace: apps-${{ values.name }}
+  annotations:
+    crossplane.io/poll-interval: "5m"
 spec:
   forProvider:
     region: ${{ values.region }}

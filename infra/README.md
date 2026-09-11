@@ -30,13 +30,16 @@ the AWS SDK's ambient credential chain. It also applies the repo-owned Argo CD
 definitions on `main` and polls Git once per minute. It does not configure
 External Secrets Operator, Backstage, or ingress.
 
-Terraform also packages the current contents of `config/`, `crossplane/`,
-`k8s/`, and `scripts/lab/` into one ZIP object in the dedicated bootstrap
-bucket. User data expands it at `/opt/backstage-sandbox` and makes it owned by
-`ec2-user`. S3 staging avoids EC2's small user-data limit while requiring no
-repository clone, Git installation, or GitHub credential. Changing any copied
-file replaces this deliberately disposable host so its bootstrap snapshot stays
-deterministic.
+Terraform also packages the current contents of `config/`, `k8s/`,
+`scripts/lab/`, `crossplane/providers/`, and
+`crossplane/providerconfigs/ec2/` into one ZIP object in the dedicated
+bootstrap bucket. These are the files needed before Argo CD begins reconciling;
+Argo CD-managed application and function content is not part of the bootstrap
+archive. User data expands the archive at `/opt/backstage-sandbox` and makes it
+owned by `ec2-user`. S3 staging avoids EC2's small user-data limit while
+requiring no repository clone, Git installation, or GitHub credential. Changing
+any copied file replaces this deliberately disposable host so its bootstrap
+snapshot stays deterministic.
 The bucket has `force_destroy = true`, so destroying `platform_host` removes
 the ZIP and bucket together.
 
@@ -107,14 +110,24 @@ just deploy
 ```
 
 Terragrunt can apply ECR and the security group in parallel, then applies the
-platform host after both dependencies succeed. Destroy uses the reverse order.
+platform host after both dependencies succeed. After the apply completes,
+`just deploy` follows the EC2 user-data console output and returns when
+bootstrap reports success or failure. Destroy uses the reverse order.
 
 Get the public URL or open a host shell:
 
 ```bash
 just tg dev aws/platform_host output
+just bootstrap-logs
 just shell
 ```
+
+`just bootstrap-logs` polls EC2's latest serial-console output, prints newly
+available user-data bytes, and returns when bootstrap reports success or
+failure. It emits a waiting message after 30 seconds without new output because
+console output can arrive in bursts rather than immediately. This path works
+while the SSM agent is deliberately offline during bootstrap; `just shell`
+becomes available only after bootstrap completes or fails.
 
 Terraform creates a lab-specific Session document, and `just shell` uses it
 to start directly as `ec2-user`. This gives the session the correct Docker

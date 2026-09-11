@@ -3,6 +3,8 @@ kind: BucketPublicAccessBlock
 metadata:
   name: test-this
   namespace: apps-test-this
+  annotations:
+    crossplane.io/poll-interval: "5m"
 spec:
   forProvider:
     region: eu-west-2

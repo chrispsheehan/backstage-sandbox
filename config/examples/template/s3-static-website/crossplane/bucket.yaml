@@ -5,6 +5,7 @@ metadata:
   namespace: apps-${{ values.name }}
   annotations:
     crossplane.io/external-name: ${{ values.bucketName }}
+    crossplane.io/poll-interval: "5m"
 spec:
   forProvider:
     region: ${{ values.region }}

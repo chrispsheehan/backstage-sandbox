@@ -54,10 +54,11 @@ capability areas just because they're nearby.
 
 - This lab is disposable by design. Prefer rebuilding over patching when a change is invasive.
 - Always use this existing repository for the lab and its generated applications; never create a new repository as part of implementation or testing.
-- Argo CD watches committed application definitions under `apps/`; do not add
-  `apps/` to the EC2 bootstrap archive or add Terraform/Terragrunt file-list
-  filtering for Argo CD-managed application content. Git is the source of truth
-  for application additions and removals.
+- Argo CD watches committed application definitions under `apps/`; Git is the
+  source of truth for application additions and removals. Keep the EC2 archive
+  limited to files required before Argo CD starts, and do not add `apps/` or
+  other Argo CD-managed application/function content to its Terragrunt file
+  list.
 - Committed demo `Secret` objects with obvious local-only values are fine here because the environment is disposable and non-production — do not carry that pattern into anything production-facing.
 
 ## Local Environment Assumptions

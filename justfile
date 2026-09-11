@@ -47,9 +47,10 @@ infra-format:
     terraform fmt -recursive "{{ PROJECT_DIR }}/infra"
     terragrunt hcl fmt --working-dir "{{ PROJECT_DIR }}/infra"
 
-# Apply all dev stacks in Terragrunt dependency order.
+# Apply all dev stacks, then follow EC2 bootstrap output to completion.
 deploy:
     just tg-all dev apply
+    just bootstrap-logs
 
 # Destroy all dev stacks in reverse Terragrunt dependency order.
 destroy:
@@ -58,3 +59,7 @@ destroy:
 # Open a Session Manager shell on the dev platform workstation.
 shell:
     just --justfile "{{ PROJECT_DIR }}/scripts/local/justfile" _shell
+
+# Stream EC2 user-data output from the dev platform workstation console.
+bootstrap-logs:
+    just --justfile "{{ PROJECT_DIR }}/scripts/local/justfile" _bootstrap-logs

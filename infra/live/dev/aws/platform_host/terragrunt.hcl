@@ -6,7 +6,8 @@ locals {
   repo_root = get_repo_root()
   platform_repo_paths = setunion(
     fileset(local.repo_root, "config/**"),
-    fileset(local.repo_root, "crossplane/**"),
+    fileset(local.repo_root, "crossplane/providers/**"),
+    fileset(local.repo_root, "crossplane/providerconfigs/ec2/**"),
     fileset(local.repo_root, "k8s/**"),
     fileset(local.repo_root, "scripts/lab/**"),
   )

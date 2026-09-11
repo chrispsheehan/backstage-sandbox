@@ -98,6 +98,75 @@ _shell:
     echo "Timed out waiting for ${instance_id} to register with Systems Manager." >&2
     exit 1
 
+# Root `just bootstrap-logs` delegates to this EC2 console-output follower.
+_bootstrap-logs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    for bin in aws terragrunt; do
+        command -v "${bin}" >/dev/null 2>&1 || {
+            echo "Missing required binary: ${bin}" >&2
+            exit 1
+        }
+    done
+
+    aws_region="${AWS_REGION:-eu-west-2}"
+    export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
+
+    cd "{{ PROJECT_DIR }}/infra/live/dev/aws/platform_host"
+    instance_id="$(terragrunt output -raw instance_id)"
+    console_file="$(mktemp)"
+    cleanup() {
+        rm -f "${console_file}"
+    }
+    trap cleanup EXIT
+
+    printed_bytes=0
+    unchanged_polls=0
+    echo "Following user-data console output for ${instance_id}."
+    while true; do
+        console_output="$(aws ec2 get-console-output \
+          --region "${aws_region}" \
+          --instance-id "${instance_id}" \
+          --latest \
+          --query Output \
+          --output text 2>/dev/null || true)"
+
+        if [[ -n "${console_output}" && "${console_output}" != "None" ]]; then
+            # The AWS CLI decodes the API's base64-encoded Output field.
+            printf '%s\n' "${console_output}" >"${console_file}"
+            available_bytes="$(wc -c <"${console_file}" | tr -d ' ')"
+            if (( available_bytes < printed_bytes )); then
+                printed_bytes=0
+            fi
+            if (( available_bytes > printed_bytes )); then
+                tail -c "+$((printed_bytes + 1))" "${console_file}"
+                printed_bytes="${available_bytes}"
+                unchanged_polls=0
+            else
+                unchanged_polls=$((unchanged_polls + 1))
+            fi
+
+            if grep -q 'Platform bootstrap failed with exit code' "${console_file}"; then
+                echo "EC2 user data failed; inspect the output above." >&2
+                exit 1
+            fi
+            if grep -q 'Platform bootstrap completed.' "${console_file}"; then
+                echo "EC2 user data completed successfully."
+                exit 0
+            fi
+        else
+            unchanged_polls=$((unchanged_polls + 1))
+        fi
+
+        if (( unchanged_polls >= 6 )); then
+            echo "Still waiting for new EC2 console output..." >&2
+            unchanged_polls=0
+        fi
+
+        sleep 5
+    done
+
 stop:
     #!/usr/bin/env bash
     set -euo pipefail

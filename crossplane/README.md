@@ -20,6 +20,8 @@ The AWS family provider is the shared credentials layer. Per Upbound's current
 provider packaging, it supplies the AWS `ProviderConfig` APIs. The S3 provider
 adds the `Bucket`, `BucketPolicy`, `BucketPublicAccessBlock`, and
 `BucketWebsiteConfiguration` CRDs used by the repo's static-site template.
+Those generated managed resources set `crossplane.io/poll-interval: "5m"` so
+external S3 drift is checked every five minutes.
 
 That keeps the bootstrap path ready for later Crossplane work without bringing
 back the earlier demo applications and provider setup.
@@ -94,6 +96,7 @@ metadata service instead of a Kubernetes Secret. Terraform attaches that
 instance profile to the host and grants it S3 access only for buckets matching
 the static-site suffix `-<account-id>-<region>`.
 
-The k3d pods add a network hop between the AWS SDK and EC2 metadata, so the
-instance requires IMDSv2 with a response hop limit of at least two. The
-platform-host module configures that explicitly.
+The k3d node container and its pods add nested network hops between the AWS SDK
+and EC2 metadata, so this deployment configures IMDSv2 with a response hop
+limit of three. A limit of two allows the host to authenticate but prevents the
+provider pod from obtaining an IMDSv2 token.

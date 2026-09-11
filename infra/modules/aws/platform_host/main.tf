@@ -82,7 +82,7 @@ resource "aws_instance" "this" {
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
-    http_put_response_hop_limit = 2
+    http_put_response_hop_limit = 3
   }
 
   root_block_device {

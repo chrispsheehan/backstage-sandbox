@@ -5,6 +5,7 @@ metadata:
   namespace: apps-test-this
   annotations:
     crossplane.io/external-name: test-this-700060376888-eu-west-2
+    crossplane.io/poll-interval: "5m"
 spec:
   forProvider:
     region: eu-west-2
