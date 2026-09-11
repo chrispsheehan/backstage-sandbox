@@ -88,11 +88,11 @@ scripts/lab/install-crossplane-providers.sh ec2
 ```
 
 The `ec2` profile applies `ClusterProviderConfig/default` with
-`credentials.source: InjectedIdentity`. The provider pods therefore obtain
-temporary credentials from the EC2 instance metadata service instead of a
-Kubernetes Secret. Terraform attaches that instance profile to the host and
-grants it S3 access only for buckets matching the static-site suffix
-`-<account-id>-<region>`.
+`credentials.source: None`. This leaves credential resolution to the AWS SDK,
+so the provider pods obtain temporary credentials from the EC2 instance
+metadata service instead of a Kubernetes Secret. Terraform attaches that
+instance profile to the host and grants it S3 access only for buckets matching
+the static-site suffix `-<account-id>-<region>`.
 
 The k3d pods add a network hop between the AWS SDK and EC2 metadata, so the
 instance requires IMDSv2 with a response hop limit of at least two. The

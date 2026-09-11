@@ -4,4 +4,6 @@ metadata:
   name: default
 spec:
   credentials:
-    source: InjectedIdentity
+    # None leaves authentication to the AWS SDK credential chain, which obtains
+    # temporary credentials from the EC2 instance profile through IMDSv2.
+    source: None

@@ -25,8 +25,8 @@ already supplied by Amazon Linux 2023, runs that script to install kubectl,
 Helm, and k3d, then runs the shared lab bootstrap as `ec2-user`. That creates a
 k3d cluster, installs Argo CD and Crossplane core, installs the Crossplane AWS
 providers, and configures them to use the EC2 instance profile through
-`InjectedIdentity`. It does not configure External Secrets Operator,
-Backstage, ingress, or application manifests.
+the AWS SDK's ambient credential chain. It does not configure External Secrets
+Operator, Backstage, ingress, or application manifests.
 
 Terraform also packages the current contents of `config/`, `crossplane/`,
 `k8s/`, and `scripts/lab/` into one ZIP object in the dedicated bootstrap
@@ -109,10 +109,13 @@ prompt. This does not change the account-wide Session Manager defaults for
 unrelated instances.
 
 EC2's native `running` state does not include SSM registration or user-data
-completion. User data stops the SSM agent before bootstrap and restarts it only
-after k3d, Argo CD, and Crossplane core are ready. `just shell` waits for the
-instance to report `Online` to Systems Manager, making that the platform-ready
-signal. The session profile also checks cloud-init before returning the prompt.
+completion. User data stops the SSM agent before bootstrap and normally
+restarts it after k3d, Argo CD, and the Crossplane providers are ready. It also
+restarts the agent on bootstrap failure so the host remains accessible for
+diagnosis. `just shell` waits for the instance to report `Online` to Systems
+Manager, and the session profile waits for cloud-init before returning the
+prompt. If bootstrap failed, inspect `/var/log/platform-bootstrap.log` after
+connecting.
 
 On the host, inspect the bootstrap result with:
 

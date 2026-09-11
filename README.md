@@ -53,8 +53,9 @@ Node 24 also works if you already have it on `PATH`.
 - Use committed demo `Secret` objects with obvious local-only values to minimize friction. This is acceptable here because the environment is disposable and non-production.
 
 Local Crossplane authentication uses an explicitly loaded AWS credentials
-Secret. The optional EC2 lab instead uses its attached instance role through
-an `InjectedIdentity` provider config; see [crossplane/README.md](crossplane/README.md).
+Secret. The optional EC2 lab instead leaves AWS SDK credential resolution
+enabled so its providers use the attached instance role; see
+[crossplane/README.md](crossplane/README.md).
 
 ## Backstage Runtime
 
