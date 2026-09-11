@@ -44,9 +44,7 @@ _bootstrap-cluster:
     kubectl -n argocd rollout status deployment/argocd-dex-server --timeout=300s
     kubectl -n argocd rollout status deployment/argocd-server --timeout=300s
 
-    kubectl apply -k "{{ PROJECT_DIR }}/crossplane/providers"
-    kubectl wait --for=condition=Healthy provider/provider-family-aws --timeout=300s
-    kubectl wait --for=condition=Healthy provider/provider-aws-s3 --timeout=300s
+    "{{ PROJECT_DIR }}/scripts/lab/install-crossplane-providers.sh"
 
     just ensure-argocd-port-forward
 
@@ -302,40 +300,11 @@ deploy-backstage:
     esac
     repo_https_url="${repo_https_url%.git}.git"
     branch_name="$(git branch --show-current)"
-    rendered_dir="{{ LAB_DIR }}/argocd"
-    rendered_app="${rendered_dir}/backstage-application.yaml"
-    rendered_generated_apps="${rendered_dir}/generated-applicationset.yaml"
-    template_file="{{ PROJECT_DIR }}/k8s/bootstrap/argocd/backstage-application.yaml"
-    generated_apps_template_file="{{ PROJECT_DIR }}/k8s/bootstrap/argocd/generated-applicationset.yaml"
-
     if [[ -z "${branch_name}" ]]; then
         branch_name="main"
     fi
 
-    mkdir -p "${rendered_dir}"
-
-    sed \
-      -e "s|__ARGOCD_REPO_URL__|${repo_https_url}|g" \
-      -e "s|__ARGOCD_BRANCH__|${branch_name}|g" \
-      "${template_file}" > "${rendered_app}"
-
-    sed \
-      -e "s|__ARGOCD_REPO_URL__|${repo_https_url}|g" \
-      -e "s|__ARGOCD_BRANCH__|${branch_name}|g" \
-      "${generated_apps_template_file}" > "${rendered_generated_apps}"
-
-    kubectl apply -f "${rendered_app}"
-    kubectl apply -f "${rendered_generated_apps}"
-
-    for _ in $(seq 1 60); do
-        if kubectl -n backstage get deployment backstage >/dev/null 2>&1; then
-            break
-        fi
-        sleep 5
-    done
-
-    kubectl -n backstage rollout restart deployment/backstage
-    kubectl -n backstage rollout status deployment/backstage --timeout=300s
+    "{{ PROJECT_DIR }}/scripts/lab/deploy-argocd-apps.sh" "${repo_https_url}" "${branch_name}"
 
 build-backstage-image:
     #!/usr/bin/env bash
@@ -368,9 +337,10 @@ build-backstage-image:
         fi
     fi
 
-    k3d image import backstage-lab:dev -c {{ CLUSTER_NAME }} --mode direct
+    CLUSTER_NAME="{{ CLUSTER_NAME }}" \
+      "{{ PROJECT_DIR }}/scripts/lab/load-backstage-image.sh" backstage-lab:dev
 
-    echo "Built and imported backstage-lab:dev into k3d."
+    echo "Built and loaded backstage-lab:dev into k3d."
 
 ensure-argocd-port-forward:
     #!/usr/bin/env bash
