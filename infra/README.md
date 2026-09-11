@@ -33,10 +33,10 @@ External Secrets Operator, Backstage, or ingress.
 Terraform also packages the current contents of `config/`, `crossplane/`,
 `k8s/`, and `scripts/lab/` into one ZIP object in the dedicated bootstrap
 bucket. User data expands it at `/opt/backstage-sandbox` and makes it owned by
-`ec2-user`. S3 staging avoids
-EC2's small user-data limit while requiring no repository clone, Git
-installation, or GitHub credential. Changing any copied file replaces this
-deliberately disposable host so its bootstrap snapshot stays deterministic.
+`ec2-user`. S3 staging avoids EC2's small user-data limit while requiring no
+repository clone, Git installation, or GitHub credential. Changing any copied
+file replaces this deliberately disposable host so its bootstrap snapshot stays
+deterministic.
 The bucket has `force_destroy = true`, so destroying `platform_host` removes
 the ZIP and bucket together.
 
@@ -77,8 +77,20 @@ state bucket must already exist. Destroying the live stacks does not remove it.
 - `AWS_REGION=eu-west-2`, unless the default is suitable
 
 GitHub credentials and the repo-root `.env` are not needed for host bootstrap
-while this repository is public. A private repository requires Argo CD
-repository credentials before the generated applications can sync.
+while this repository is public.
+
+## Private GitHub Repository
+
+No private-repository credential is currently provisioned. If the repository
+becomes private, add a repository-scoped, read-only GitHub token at the EC2
+boundary: create an SSM `SecureString` in `modules/aws/platform_role`, pass only
+its parameter name into `modules/aws/platform_host`, and have user data create
+an Argo CD repository `Secret` before applying the generated-app
+`ApplicationSet`. Keep the token out of Terraform inputs, state, user data, and
+logs. See GitHub's
+[fine-grained token instructions](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token)
+and the
+[Argo CD private-repository documentation](https://argo-cd.readthedocs.io/en/stable/user-guide/private-repositories/).
 
 ## Commands
 

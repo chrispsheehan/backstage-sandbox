@@ -43,6 +43,11 @@ Generated child applications use Argo CD's resource finalizer, so removing an
 app directory also prunes the Kubernetes and Crossplane resources that the
 child application managed.
 
+Local private-repository authentication is handled by `just
+argocd-repo-auth`. The current unattended EC2 path assumes this repository is
+public; the future private-repository integration points are recorded in the
+[EC2 infrastructure notes](../infra/README.md#private-github-repository).
+
 The tracked Argo CD application templates are rendered to standard input.
 `scripts/lab/deploy-argocd-apps.sh` applies the Backstage application and the
 generated-app discovery `ApplicationSet` for the local workflow.

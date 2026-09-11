@@ -9,6 +9,10 @@ spec:
     - missingkey=error
   generators:
     - git:
+        # Public repos need no credential. For a private repo, configure an
+        # Argo CD repository Secret before applying this ApplicationSet.
+        # EC2 integration notes: ../../../infra/README.md#private-github-repository
+        # Argo CD docs: https://argo-cd.readthedocs.io/en/stable/user-guide/private-repositories/
         repoURL: __ARGOCD_REPO_URL__
         revision: __ARGOCD_BRANCH__
         requeueAfterSeconds: 60
