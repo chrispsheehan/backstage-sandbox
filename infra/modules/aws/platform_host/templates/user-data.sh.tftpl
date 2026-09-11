@@ -22,12 +22,13 @@ until aws s3 cp "${platform_repo_s3_uri}" /tmp/platform-repo.zip --region "$AWS_
   sleep 10
 done
 unzip -q /tmp/platform-repo.zip -d /opt/backstage-sandbox
-chmod 0755 /opt/backstage-sandbox/scripts/lab/bootstrap-cluster.sh
+chmod 0755 /opt/backstage-sandbox/scripts/lab/*.sh
 chown -R ec2-user:ec2-user /opt/backstage-sandbox
 
 export AWS_REGION PLATFORM_REPO_CONTENT_HASH
 /usr/local/sbin/bootstrap-platform-host
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/bootstrap-cluster.sh
+sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/install-crossplane-providers.sh
 systemctl restart amazon-ssm-agent
 
 echo "Platform bootstrap completed."

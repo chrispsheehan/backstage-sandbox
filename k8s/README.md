@@ -39,6 +39,11 @@ provider installation after merge.
 applies those committed child `Application` manifests into the `argocd`
 namespace.
 
+The tracked Argo CD application templates are rendered to standard input and
+applied by `scripts/lab/deploy-argocd-apps.sh`. Both local and EC2 workflows can
+call that script with their repository URL and revision; it does not create
+generated YAML files in the repo.
+
 On some local `k3d` setups, the generated kubeconfig server for
 `k3d-platform-lab` can be `https://0.0.0.0:<port>`. The bootstrap flow
 rewrites that entry to `https://127.0.0.1:<port>` before running `kubectl`,

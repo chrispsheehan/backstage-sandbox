@@ -1,24 +1,3 @@
-resource "aws_iam_role" "this" {
-  name               = "${var.base_name}-platform-host"
-  assume_role_policy = data.aws_iam_policy_document.instance_assume_role.json
-}
-
-resource "aws_iam_role_policy_attachment" "ssm" {
-  role       = aws_iam_role.this.name
-  policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-resource "aws_iam_role_policy" "platform" {
-  name   = "${var.base_name}-platform"
-  role   = aws_iam_role.this.id
-  policy = data.aws_iam_policy_document.platform.json
-}
-
-resource "aws_iam_instance_profile" "this" {
-  name = "${var.base_name}-platform-host"
-  role = aws_iam_role.this.name
-}
-
 resource "aws_ssm_document" "run_shell" {
   name          = "${var.base_name}-run-shell"
   document_type = "Session"
@@ -88,7 +67,7 @@ resource "aws_instance" "this" {
   subnet_id                   = sort(data.aws_subnets.public.ids)[0]
   associate_public_ip_address = false
   vpc_security_group_ids      = [var.platform_security_group_id]
-  iam_instance_profile        = aws_iam_instance_profile.this.name
+  iam_instance_profile        = var.instance_profile_name
 
   user_data_replace_on_change = true
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {
@@ -111,8 +90,6 @@ resource "aws_instance" "this" {
   }
 
   depends_on = [
-    aws_iam_role_policy.platform,
-    aws_iam_role_policy_attachment.ssm,
     aws_s3_object.platform_repo,
   ]
 }

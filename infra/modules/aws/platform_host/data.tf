@@ -1,5 +1,3 @@
-data "aws_partition" "current" {}
-
 data "aws_vpc" "this" {
   filter {
     name   = "tag:Name"
@@ -41,26 +39,5 @@ data "aws_ami" "amazon_linux_2023_arm64" {
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
-  }
-}
-
-data "aws_iam_policy_document" "instance_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
-    }
-  }
-}
-
-data "aws_iam_policy_document" "platform" {
-  statement {
-    sid     = "ReadBootstrapArchive"
-    actions = ["s3:GetObject"]
-    resources = [
-      "${aws_s3_bucket.bootstrap.arn}/platform-repo.zip",
-    ]
   }
 }

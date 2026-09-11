@@ -1,0 +1,10 @@
+# Platform Role Module
+
+Creates the EC2 role and instance profile used by the development platform
+host. The role has the AWS-managed Session Manager core policy plus narrowly
+scoped permissions to download the bootstrap ZIP and pull images from the
+platform ECR repository.
+
+The role and profile use names ending in `-ec2`, rather than the previous
+host-owned names, so the live stacks can migrate without cross-state imports or
+IAM name collisions.

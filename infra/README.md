@@ -10,25 +10,27 @@ environment.
 The `just deploy` deployment creates:
 
 - a private ECR repository retained for later image work
+- a separate EC2 role and instance profile with SSM, bootstrap-download, and
+  ECR pull permissions
 - one `t4g.medium` Amazon Linux 2023 EC2 workstation
 - one encrypted 30 GiB gp3 root volume
 - an Elastic IP
 - a separately managed security group exposing HTTP, with administration
   through SSM
 - a private, encrypted bootstrap S3 bucket with force-destroy enabled
-- an instance role for SSM and read-only bootstrap-file download
 
 Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
 it to the platform-host module. EC2 user data installs Docker, uses the AWS CLI
 already supplied by Amazon Linux 2023, runs that script to install kubectl,
 Helm, and k3d, then runs the shared lab bootstrap as `ec2-user`. That creates a
-k3d cluster and installs Argo CD and Crossplane core. It does not install the
-AWS Crossplane providers, External Secrets Operator, Backstage, ingress, or
-application manifests.
+k3d cluster, installs Argo CD and Crossplane core, and installs the Crossplane
+AWS providers. It does not configure provider credentials, External Secrets
+Operator, Backstage, ingress, or application manifests.
 
-Terraform also packages the current contents of `config/`, `k8s/`, and
-`scripts/lab/` into one ZIP object in the dedicated bootstrap bucket. User data expands it at
-`/opt/backstage-sandbox` and makes it owned by `ec2-user`. S3 staging avoids
+Terraform also packages the current contents of `config/`, `crossplane/`,
+`k8s/`, and `scripts/lab/` into one ZIP object in the dedicated bootstrap
+bucket. User data expands it at `/opt/backstage-sandbox` and makes it owned by
+`ec2-user`. S3 staging avoids
 EC2's small user-data limit while requiring no repository clone, Git
 installation, or GitHub credential. Changing any copied file replaces this
 deliberately disposable host so its bootstrap snapshot stays deterministic.
@@ -126,6 +128,7 @@ The copied working set is:
 
 ```text
 /opt/backstage-sandbox/config
+/opt/backstage-sandbox/crossplane
 /opt/backstage-sandbox/k8s
 /opt/backstage-sandbox/scripts/lab
 ```

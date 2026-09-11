@@ -40,6 +40,9 @@ Node 24 also works if you already have it on `PATH`.
   reset recipes while preserving their existing root-level command names.
 - `scripts/lab/bootstrap-cluster.sh` owns the cluster, Argo CD, and Crossplane
   core bootstrap shared by local and EC2 workflows.
+- `scripts/lab/install-crossplane-providers.sh`, `deploy-argocd-apps.sh`, and
+  `load-backstage-image.sh` own the remaining portable deployment operations;
+  local and EC2 wrappers supply their environment-specific inputs.
 
 ## Recommended Shape
 

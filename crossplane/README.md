@@ -1,7 +1,8 @@
 # Crossplane
 
-Crossplane is installed by `just setup`. The bootstrap flow now also
-installs the AWS family provider and the AWS S3 service provider, but they are
+Crossplane core is installed by the shared `scripts/lab/bootstrap-cluster.sh`.
+The shared `scripts/lab/install-crossplane-providers.sh` then installs the AWS
+family provider and AWS S3 service provider, but they are
 not yet managed by Argo CD and there are no demo managed resources in the
 default lab shape.
 

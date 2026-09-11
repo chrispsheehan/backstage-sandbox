@@ -33,7 +33,11 @@ variable "platform_security_group_id" {
   type = string
 }
 
+variable "instance_profile_name" {
+  type = string
+}
+
 variable "platform_repo_files" {
   type        = map(string)
-  description = "Contents of the repo's config and k8s directories copied to the host."
+  description = "Contents of the selected repo directories copied to the host."
 }

@@ -1,18 +1,16 @@
 # Platform Host Module
 
-Creates the single-node dev platform host, its Elastic IP, instance profile,
-and least-cost bootstrap surface. It consumes the security group owned by the
-separate `security` stack. Its Terragrunt live configuration also declares ECR
-as an order-only dependency, reserving that integration point without passing
-an unused repository output into this module.
+Creates the single-node dev platform host, its Elastic IP, and least-cost
+bootstrap surface. It consumes the security group and instance profile owned
+by the separate `security` and `platform_role` stacks.
 
 The module discovers the existing VPC by exact `Name` tag and public subnets by
 `*public*` `Name` tag. EC2 user data installs Docker, kubectl, Helm, and k3d,
-then creates a k3d cluster with Argo CD and Crossplane core. Terraform creates a private, encrypted bootstrap
-bucket with `force_destroy = true`, stages the repo's `config/`, `k8s/`, and
-shared `scripts/lab/` files there as one ZIP, and expands it at
-`/opt/backstage-sandbox`. No
-repository credentials are placed on the host.
+then creates a k3d cluster with Argo CD, Crossplane core, and the AWS providers.
+Terraform creates a private, encrypted bootstrap bucket with `force_destroy =
+true`, stages the repo's `config/`, `crossplane/`, `k8s/`, and shared
+`scripts/lab/` files there as one ZIP, and expands it at
+`/opt/backstage-sandbox`. No repository credentials are placed on the host.
 
 User data runs the shared lab script as `ec2-user`, which owns the generated
 kubeconfig and has Docker access. The script can be rerun manually as that
