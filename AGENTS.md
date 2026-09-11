@@ -30,6 +30,9 @@ capability areas just because they're nearby.
 
 ## Editing Rules
 
+**YAML**
+- Do not create YAML through shell heredocs/`EOF` blocks or embed YAML documents inside other YAML files; keep manifests as standalone tracked files.
+
 **Docs**
 - Keep docs aligned with behavior changes.
 - Human-facing contracts live in the nearest owning README, not in `AGENTS.md` or the root README.
