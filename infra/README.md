@@ -10,8 +10,8 @@ environment.
 The `just deploy` deployment creates:
 
 - a private ECR repository retained for later image work
-- a separate EC2 role and instance profile with SSM, bootstrap-download, and
-  ECR pull permissions
+- a separate EC2 role and instance profile with SSM, bootstrap-download, ECR
+  pull, and generated-site S3 permissions
 - one `t4g.medium` Amazon Linux 2023 EC2 workstation
 - one encrypted 30 GiB gp3 root volume
 - an Elastic IP
@@ -23,9 +23,10 @@ Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
 it to the platform-host module. EC2 user data installs Docker, uses the AWS CLI
 already supplied by Amazon Linux 2023, runs that script to install kubectl,
 Helm, and k3d, then runs the shared lab bootstrap as `ec2-user`. That creates a
-k3d cluster, installs Argo CD and Crossplane core, and installs the Crossplane
-AWS providers. It does not configure provider credentials, External Secrets
-Operator, Backstage, ingress, or application manifests.
+k3d cluster, installs Argo CD and Crossplane core, installs the Crossplane AWS
+providers, and configures them to use the EC2 instance profile through
+`InjectedIdentity`. It does not configure External Secrets Operator,
+Backstage, ingress, or application manifests.
 
 Terraform also packages the current contents of `config/`, `crossplane/`,
 `k8s/`, and `scripts/lab/` into one ZIP object in the dedicated bootstrap
@@ -186,8 +187,10 @@ Sources: [AWS EC2 On-Demand pricing](https://aws.amazon.com/ec2/pricing/on-deman
 [AWS VPC public IPv4 pricing](https://aws.amazon.com/vpc/pricing/), and
 [AWS Systems Manager pricing](https://aws.amazon.com/systems-manager/pricing/).
 
-The instance profile can read only its ZIP from the dedicated bootstrap bucket,
-in addition to the AWS-managed permissions needed for Session Manager.
-Containers started on the host may be able to reach that EC2 metadata identity.
+The instance profile can read its ZIP from the dedicated bootstrap bucket, pull
+the Backstage image from the lab ECR repository, and manage S3 buckets ending
+in `-<account-id>-<region>` for generated static sites, in addition to the
+AWS-managed permissions needed for Session Manager. Containers started on the
+host may be able to reach that EC2 metadata identity.
 Use workload identity and narrowly scoped workload roles before adding cloud
 controllers or running a persistent or multi-tenant platform.

@@ -28,7 +28,7 @@ chown -R ec2-user:ec2-user /opt/backstage-sandbox
 export AWS_REGION PLATFORM_REPO_CONTENT_HASH
 /usr/local/sbin/bootstrap-platform-host
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/bootstrap-cluster.sh
-sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/install-crossplane-providers.sh
+sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/install-crossplane-providers.sh ec2
 systemctl restart amazon-ssm-agent
 
 echo "Platform bootstrap completed."

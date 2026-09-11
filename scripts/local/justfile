@@ -137,7 +137,7 @@ crossplane-aws-auth credentials_file:
     secret_name="aws-creds"
     aws_dir="{{ LAB_DIR }}/aws"
     creds_file="${aws_dir}/aws-creds.credentials"
-    provider_config_file="{{ PROJECT_DIR }}/crossplane/providerconfigs/default-cluster-provider-config.yaml"
+    provider_config_file="{{ PROJECT_DIR }}/crossplane/providerconfigs/local/default-cluster-provider-config.yaml"
 
     if [[ ! -f "${credentials_file}" ]]; then
         echo "Credentials file not found: ${credentials_file}" >&2

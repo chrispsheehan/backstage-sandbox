@@ -35,4 +35,22 @@ data "aws_iam_policy_document" "platform" {
     ]
     resources = [var.ecr_repository_arn]
   }
+
+  statement {
+    sid = "DiscoverS3Buckets"
+    actions = [
+      "s3:GetAccountPublicAccessBlock",
+      "s3:ListAllMyBuckets",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid     = "ManageGeneratedS3Sites"
+    actions = ["s3:*"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:s3:::*-${var.aws_account_id}-${var.aws_region}",
+      "arn:${data.aws_partition.current.partition}:s3:::*-${var.aws_account_id}-${var.aws_region}/*",
+    ]
+  }
 }

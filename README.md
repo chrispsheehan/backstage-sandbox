@@ -52,6 +52,10 @@ Node 24 also works if you already have it on `PATH`.
 - Install Crossplane core during bootstrap, plus the AWS family provider for shared AWS credentials wiring, but do not add demo managed resources yet.
 - Use committed demo `Secret` objects with obvious local-only values to minimize friction. This is acceptable here because the environment is disposable and non-production.
 
+Local Crossplane authentication uses an explicitly loaded AWS credentials
+Secret. The optional EC2 lab instead uses its attached instance role through
+an `InjectedIdentity` provider config; see [crossplane/README.md](crossplane/README.md).
+
 ## Backstage Runtime
 
 `just start` is the one-command local setup path: it bootstraps `k3d`, Argo CD,
@@ -170,6 +174,17 @@ Then run:
 ```bash
 just start
 ```
+
+After it completes, verify that both Crossplane AWS providers are installed
+and healthy:
+
+```bash
+kubectl get providers.pkg.crossplane.io
+```
+
+See [Crossplane provider verification](crossplane/README.md#verify-provider-installation)
+for the expected result and the distinction between provider health and AWS
+credential access.
 
 That command will:
 
