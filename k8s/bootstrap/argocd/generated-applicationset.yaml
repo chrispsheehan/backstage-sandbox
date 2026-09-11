@@ -11,6 +11,7 @@ spec:
     - git:
         repoURL: __ARGOCD_REPO_URL__
         revision: __ARGOCD_BRANCH__
+        requeueAfterSeconds: 60
         directories:
           - path: apps/*/argocd
   template:

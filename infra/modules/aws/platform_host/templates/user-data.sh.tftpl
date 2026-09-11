@@ -35,6 +35,8 @@ export AWS_REGION PLATFORM_REPO_CONTENT_HASH
 /usr/local/sbin/bootstrap-platform-host
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/bootstrap-cluster.sh
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/install-crossplane-providers.sh ec2
+sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/deploy-generated-applications.sh \
+  "${git_repository_url}" "${git_revision}"
 systemctl restart amazon-ssm-agent
 trap - EXIT
 

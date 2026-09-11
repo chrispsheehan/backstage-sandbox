@@ -15,6 +15,17 @@ variable "bootstrap_script" {
   description = "Tracked shell script run automatically during initial host bootstrap."
 }
 
+variable "github_repo" {
+  type        = string
+  description = "GitHub owner and repository scanned by the Argo CD ApplicationSet."
+}
+
+variable "git_revision" {
+  type        = string
+  description = "Git revision scanned by the Argo CD ApplicationSet."
+  default     = "main"
+}
+
 variable "vpc_name" {
   type = string
 }

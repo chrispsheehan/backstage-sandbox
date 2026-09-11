@@ -25,8 +25,10 @@ already supplied by Amazon Linux 2023, runs that script to install kubectl,
 Helm, and k3d, then runs the shared lab bootstrap as `ec2-user`. That creates a
 k3d cluster, installs Argo CD and Crossplane core, installs the Crossplane AWS
 providers, and configures them to use the EC2 instance profile through
-the AWS SDK's ambient credential chain. It does not configure External Secrets
-Operator, Backstage, ingress, or application manifests.
+the AWS SDK's ambient credential chain. It also applies the repo-owned Argo CD
+`ApplicationSet`, which continuously discovers committed `apps/*/argocd`
+definitions on `main` and polls Git once per minute. It does not configure
+External Secrets Operator, Backstage, or ingress.
 
 Terraform also packages the current contents of `config/`, `crossplane/`,
 `k8s/`, and `scripts/lab/` into one ZIP object in the dedicated bootstrap
@@ -74,7 +76,9 @@ state bucket must already exist. Destroying the live stacks does not remove it.
 - the Terragrunt state bucket described above already created
 - `AWS_REGION=eu-west-2`, unless the default is suitable
 
-GitHub credentials and the repo-root `.env` are not needed for host bootstrap.
+GitHub credentials and the repo-root `.env` are not needed for host bootstrap
+while this repository is public. A private repository requires Argo CD
+repository credentials before the generated applications can sync.
 
 ## Commands
 
@@ -150,9 +154,11 @@ Sessions opened without the lab-specific document still use the default
 `ssm-user`, which does not own that kubeconfig or belong to the `docker` group.
 The shared bootstrap remains safe to rerun manually from the `ec2-user` shell.
 
-Then apply or adapt the tracked YAML manually. Once Argo CD is configured, it reads `apps/` from Git rather than the
-EC2 filesystem. Crossplane definitions can follow the same GitOps path later.
-The AWS deployment deliberately makes no further choices for you.
+The installed `ApplicationSet` reads `apps/*/argocd` from the tracked Git
+revision rather than the EC2 filesystem. Adding or removing a committed app
+definition is therefore reconciled automatically without another
+`kubectl apply`. Apply other tracked YAML manually if you want to extend the
+default lab shape.
 
 Destroy all dev stacks in reverse dependency order when the PoC is idle:
 

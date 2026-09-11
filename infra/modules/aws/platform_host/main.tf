@@ -73,6 +73,8 @@ resource "aws_instance" "this" {
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {
     aws_region                  = var.aws_region
     bootstrap_script_base64gzip = base64gzip(var.bootstrap_script)
+    git_repository_url          = "https://github.com/${var.github_repo}.git"
+    git_revision                = var.git_revision
     platform_repo_content_hash  = data.archive_file.platform_repo.output_sha256
     platform_repo_s3_uri        = "s3://${aws_s3_bucket.bootstrap.bucket}/${aws_s3_object.platform_repo.key}"
   })

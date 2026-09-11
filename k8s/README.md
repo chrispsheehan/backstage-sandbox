@@ -37,12 +37,18 @@ provider installation after merge.
 `just deploy-backstage` also renders and applies the repo-owned Argo CD
 `ApplicationSet` that scans `apps/*/argocd` on the current Git branch and
 applies those committed child `Application` manifests into the `argocd`
-namespace.
+namespace. Its Git generator polls once per minute, so later committed
+additions and removals do not require another `kubectl apply`.
+Generated child applications use Argo CD's resource finalizer, so removing an
+app directory also prunes the Kubernetes and Crossplane resources that the
+child application managed.
 
-The tracked Argo CD application templates are rendered to standard input and
-applied by `scripts/lab/deploy-argocd-apps.sh`. Both local and EC2 workflows can
-call that script with their repository URL and revision; it does not create
-generated YAML files in the repo.
+The tracked Argo CD application templates are rendered to standard input.
+`scripts/lab/deploy-argocd-apps.sh` applies the Backstage application and the
+generated-app discovery `ApplicationSet` for the local workflow.
+`scripts/lab/deploy-generated-applications.sh` applies only the `ApplicationSet`
+for the EC2 workflow. Both accept a repository URL and revision and neither
+creates generated YAML files in the repo.
 
 On some local `k3d` setups, the generated kubeconfig server for
 `k3d-platform-lab` can be `https://0.0.0.0:<port>`. The bootstrap flow

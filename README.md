@@ -12,8 +12,10 @@ The design is intentionally ephemeral. Rebuilding from scratch is the normal wor
 An optional dev-only AWS deployment provides an EC2 platform lab with an
 Elastic IP and SSM access. It installs Docker, kubectl, Helm, and k3d; copies
 the repo's `config/`, `k8s/`, and shared `scripts/lab/` trees to the host; then
-creates a k3d cluster with Argo CD and Crossplane core. It deliberately avoids EKS, load balancers, NAT
-gateways, and hosted zones. See
+creates a k3d cluster with Argo CD and Crossplane core and installs an
+`ApplicationSet` that continuously discovers committed `apps/*/argocd`
+definitions. It deliberately avoids EKS, load balancers, NAT gateways, and
+hosted zones. See
 [infra/README.md](infra/README.md) for its architecture, prerequisites, cost,
 secret flow, and Terragrunt commands.
 

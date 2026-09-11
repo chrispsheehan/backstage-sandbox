@@ -50,6 +50,7 @@ capability areas just because they're nearby.
 ## Design Principles
 
 - This lab is disposable by design. Prefer rebuilding over patching when a change is invasive.
+- Always use this existing repository for the lab and its generated applications; never create a new repository as part of implementation or testing.
 - Committed demo `Secret` objects with obvious local-only values are fine here because the environment is disposable and non-production — do not carry that pattern into anything production-facing.
 
 ## Local Environment Assumptions
