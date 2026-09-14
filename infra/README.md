@@ -112,7 +112,9 @@ just deploy
 Terragrunt can apply ECR and the security group in parallel, then applies the
 platform host after both dependencies succeed. After the apply completes,
 `just deploy` follows the EC2 user-data console output and returns when
-bootstrap reports success or failure. Destroy uses the reverse order.
+bootstrap reports success or failure. After a successful bootstrap it prints
+the `platform_host` outputs, including the Backstage and Argo CD URLs. Destroy
+uses the reverse order.
 
 Get the public URLs or open a host shell:
 

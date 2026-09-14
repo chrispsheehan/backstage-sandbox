@@ -51,6 +51,7 @@ infra-format:
 deploy:
     just tg-all dev apply
     just bootstrap-logs
+    just tg dev aws/platform_host output
 
 # Destroy all dev stacks in reverse Terragrunt dependency order.
 destroy:
