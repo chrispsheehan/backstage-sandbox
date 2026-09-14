@@ -8,7 +8,7 @@ resource "aws_security_group" "platform" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = var.ingress_cidrs
+    cidr_blocks = [local.caller_ipv4_cidr]
   }
 
   egress {

@@ -15,8 +15,8 @@ The `just deploy` deployment creates:
 - one `t4g.medium` Amazon Linux 2023 EC2 workstation
 - one encrypted 30 GiB gp3 root volume
 - an Elastic IP
-- a separately managed security group exposing HTTP, with administration
-  through SSM
+- a separately managed security group exposing HTTP only to the Terraform
+  caller's current public IPv4 address, with administration through SSM
 - a private, encrypted bootstrap S3 bucket with force-destroy enabled
 
 Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
@@ -114,13 +114,16 @@ platform host after both dependencies succeed. After the apply completes,
 `just deploy` follows the EC2 user-data console output and returns when
 bootstrap reports success or failure. Destroy uses the reverse order.
 
-Get the public URL or open a host shell:
+Get the public URLs or open a host shell:
 
 ```bash
 just tg dev aws/platform_host output
 just bootstrap-logs
 just shell
 ```
+
+The `platform_host` output includes `backstage_url` for Backstage on port 80
+and `argocd_url` for Argo CD on port 8080.
 
 `just bootstrap-logs` polls EC2's latest serial-console output, prints newly
 available user-data bytes, and returns when bootstrap reports success or

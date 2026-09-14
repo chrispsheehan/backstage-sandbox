@@ -17,3 +17,7 @@ output "public_ip" {
 output "backstage_url" {
   value = "http://${aws_eip.this.public_ip}"
 }
+
+output "argocd_url" {
+  value = "http://${aws_eip.this.public_ip}:8080"
+}
