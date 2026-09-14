@@ -37,9 +37,11 @@ Node 24 also works if you already have it on `PATH`.
 - [crossplane/README.md](crossplane/README.md) explains the minimal Crossplane setup currently installed by bootstrap.
 - [k8s/README.md](k8s/README.md) explains the cluster bootstrap order, Argo CD ownership, and local access pattern.
 - [infra/README.md](infra/README.md) explains the optional dev EC2 workstation.
-- `justfile` exposes the AWS/Terragrunt commands and imports the local recipes.
+- `justfile` exposes the root commands and imports the local and CI recipes.
 - `scripts/local/justfile` owns the local k3d, auth, image-build, deploy, and
   reset recipes while preserving their existing root-level command names.
+- `scripts/ci/justfile` owns the AWS/Terragrunt and ECR image-publishing
+  recipes while preserving their root-level command names.
 - `scripts/lab/bootstrap-cluster.sh` owns the cluster, Argo CD, and Crossplane
   core bootstrap shared by local and EC2 workflows.
 - `scripts/lab/install-crossplane-providers.sh`, `deploy-argocd-apps.sh`, and

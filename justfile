@@ -1,4 +1,5 @@
 import 'scripts/local/justfile'
+import 'scripts/ci/justfile'
 
 default:
     @just --list
@@ -14,31 +15,6 @@ local:
 # Run the complete local lab workflow through the owning local Justfile.
 start:
     just --justfile "{{ PROJECT_DIR }}/scripts/local/justfile" _start
-
-# Run one Terragrunt operation for a dev AWS stack, for example:
-# just tg dev aws/platform_host plan
-tg env module op:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd "{{ PROJECT_DIR }}/infra/live/{{ env }}/{{ module }}"
-    if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
-        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-        export AWS_ACCOUNT_ID
-    fi
-    export TG_NON_INTERACTIVE=true
-    terragrunt {{ op }}
-
-# Run a Terragrunt operation across the selected environment.
-tg-all env op:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd "{{ PROJECT_DIR }}/infra/live/{{ env }}"
-    if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
-        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-        export AWS_ACCOUNT_ID
-    fi
-    export TG_NON_INTERACTIVE=true
-    terragrunt run --all {{ op }}
 
 # Format Terraform and Terragrunt files.
 infra-format:

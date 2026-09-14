@@ -1,0 +1,104 @@
+CI_PROJECT_DIR := source_directory() / "../.."
+
+# Run one Terragrunt operation for a dev AWS stack, for example:
+# just tg dev aws/platform_host plan
+tg env module op:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
+        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+        export AWS_ACCOUNT_ID
+    fi
+    export TG_NON_INTERACTIVE=true
+    terragrunt \
+      --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}/{{ module }}" \
+      {{ op }}
+
+# Run a Terragrunt operation across the selected environment.
+tg-all env op:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
+        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+        export AWS_ACCOUNT_ID
+    fi
+    export TG_NON_INTERACTIVE=true
+    terragrunt \
+      --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}" \
+      run --all {{ op }}
+
+# Build and push a versioned ARM64 Backstage image to the existing ECR repository.
+push-image version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    version="{{ version }}"
+    if [[ ! "${version}" =~ ^[0-9a-f]{7,40}$ ]]; then
+        echo "Version must be a 7-40 character lowercase Git hash." >&2
+        exit 1
+    fi
+
+    for bin in aws docker terragrunt; do
+        command -v "${bin}" >/dev/null 2>&1 || {
+            echo "Missing required binary: ${bin}" >&2
+            exit 1
+        }
+    done
+    if ! docker info >/dev/null 2>&1; then
+        echo "Docker is installed, but its daemon is not running." >&2
+        exit 1
+    fi
+    if ! docker buildx version >/dev/null 2>&1; then
+        echo "Docker Buildx is required to build the ARM64 image." >&2
+        exit 1
+    fi
+
+    export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
+    export TG_NON_INTERACTIVE=true
+    ecr_stack="{{ CI_PROJECT_DIR }}/infra/live/dev/aws/ecr"
+    terragrunt --working-dir "${ecr_stack}" apply
+    repository_url="$(terragrunt --working-dir "${ecr_stack}" output -raw repository_url)"
+    registry="${repository_url%%/*}"
+    aws_region="$(cut -d. -f4 <<<"${registry}")"
+    image_uri="${repository_url}:${version}"
+    build_log="{{ CI_PROJECT_DIR }}/.lab/build-push-backstage-image.log"
+
+    mkdir -p "{{ CI_PROJECT_DIR }}/.lab"
+    aws ecr get-login-password --region "${aws_region}" \
+      | docker login --username AWS --password-stdin "${registry}"
+
+    build_and_push() {
+        docker buildx build \
+          --platform linux/arm64 \
+          --target backstage \
+          --file "{{ CI_PROJECT_DIR }}/Dockerfile" \
+          --tag "${image_uri}" \
+          --push \
+          "{{ CI_PROJECT_DIR }}"
+    }
+
+    if ! build_and_push 2>&1 | tee "${build_log}"; then
+        if ! grep -q 'The lockfile would have been modified by this install' "${build_log}"; then
+            exit 1
+        fi
+
+        echo "Detected stale backstage/yarn.lock; refreshing it in Docker and retrying."
+        docker run --rm \
+          --user "$(id -u):$(id -g)" \
+          --volume "{{ CI_PROJECT_DIR }}/backstage:/app" \
+          --workdir /app \
+          node:24-trixie-slim \
+          sh -lc 'corepack enable >/dev/null 2>&1 && yarn install'
+        build_and_push
+    fi
+
+    printf '\nPushed Backstage image:\n  %s\n' "${image_uri}"
+    printf '%s\n' \
+      '' \
+      'To select this version, update the images block in the Kustomization that' \
+      'the Backstage Argo CD Application points to, then commit and push it:' \
+      '' \
+      'images:' \
+      '  - name: backstage-lab' \
+      "    newName: ${repository_url}" \
+      "    newTag: ${version}"

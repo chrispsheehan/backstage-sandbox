@@ -116,6 +116,27 @@ bootstrap reports success or failure. After a successful bootstrap it prints
 the `platform_host` outputs, including the Backstage and Argo CD URLs. Destroy
 uses the reverse order.
 
+Apply the ECR stack, then build and push a Backstage image separately:
+
+```bash
+just push-image "$(git rev-parse HEAD)"
+```
+
+The required version must be a 7-40 character lowercase Git hash. This command
+first applies only the ECR module, reads its repository URL, builds the image
+for ARM64, pushes it as `<ecr-repository-url>:<version>`, and prints the exact
+Kustomize `images` block to put in the overlay targeted by the Backstage Argo
+CD Application. Committing and pushing that overlay change is the separate
+GitOps step that selects the new image for deployment.
+
+Publishing does not currently deploy Backstage to EC2: the EC2 bootstrap still
+only installs the generated-app `ApplicationSet`. A Backstage Argo CD
+`Application` and its EC2 Kustomize overlay must exist before the printed image
+selection can affect a workload there.
+
+Image publishing requires a running local Docker daemon, Docker Buildx, and
+AWS credentials that can apply the ECR module and push to the repository.
+
 Get the public URLs or open a host shell:
 
 ```bash
