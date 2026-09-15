@@ -74,7 +74,7 @@ _push-image version:
     export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
     export TG_NON_INTERACTIVE=true
     ecr_stack="{{ CI_PROJECT_DIR }}/infra/live/dev/aws/ecr"
-    terragrunt --working-dir "${ecr_stack}" apply
+    terragrunt --working-dir "${ecr_stack}" apply -auto-approve
     repository_url="$(terragrunt --working-dir "${ecr_stack}" output -raw repository_url)"
     registry="${repository_url%%/*}"
     aws_region="$(cut -d. -f4 <<<"${registry}")"

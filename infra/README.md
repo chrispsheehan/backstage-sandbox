@@ -156,9 +156,10 @@ just push-image
 ```
 
 The required version must be a 7-40 character lowercase Git hash. This command
-first applies only the ECR module, reads its repository URL, builds the image
-for ARM64, pushes it as `<ecr-repository-url>:<version>`, and prints the exact
-Kustomize `images` block and its destination file,
+first applies only the ECR module with automatic approval, reads its repository
+URL, builds the image for ARM64, pushes it as
+`<ecr-repository-url>:<version>`, and prints the exact Kustomize `images` block
+and its destination file,
 `k8s/overlays/ec2/backstage/kustomization.yaml`. Committing and pushing that
 overlay change is the separate GitOps step that selects the new image for
 deployment.
