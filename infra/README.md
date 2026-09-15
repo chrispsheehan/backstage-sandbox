@@ -24,11 +24,13 @@ The `just deploy` deployment creates:
 
 Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
 it to the platform-host module. EC2 user data installs Docker, uses the AWS CLI
-already supplied by Amazon Linux 2023, runs that script to install kubectl,
-Helm, and k3d, then runs the shared lab bootstrap as `ec2-user`. That creates a
-k3d cluster, installs Argo CD and Crossplane core, installs the Crossplane AWS
-providers, and configures them to use the EC2 instance profile through
-the AWS SDK's ambient credential chain. Before installing the Argo CD
+already supplied by Amazon Linux 2023, and runs that script to install kubectl,
+Helm, and k3d. It builds and starts Caddy before creating the cluster so the
+custom-image build has the host's memory available and Argo CD exposure does
+not depend on Backstage becoming healthy. The shared lab bootstrap then creates
+a k3d cluster, installs Argo CD and Crossplane core, installs the Crossplane AWS
+providers, and configures them to use the EC2 instance profile through the AWS
+SDK's ambient credential chain. Before installing the Argo CD
 applications, it reads the Backstage backend secret and GitHub OAuth
 credentials from SSM Parameter Store and creates runtime-only Kubernetes
 Secrets for those values and ECR image pulls. The same OAuth values configure
@@ -37,8 +39,9 @@ Backstage `Application` and the repo-owned
 `ApplicationSet`, which continuously discovers committed `apps/*/argocd`
 definitions on `main` and polls Git once per minute. Caddy owns host ports 80
 and 443, terminates browser-trusted HTTPS, and selects Backstage or Argo CD from
-the requested hostname. Their k3d NodePorts bind to EC2 loopback only. It does
-not configure External Secrets Operator or an ingress controller.
+the requested hostname. Their k3d NodePorts bind to EC2 loopback only. After
+Backstage rolls out, bootstrap verifies both public HTTPS routes through Caddy.
+It does not configure External Secrets Operator or an ingress controller.
 
 Terraform also packages the current contents of `config/`, `k8s/`,
 `scripts/lab/`, `crossplane/providers/`, and

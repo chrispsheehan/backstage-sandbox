@@ -39,6 +39,9 @@ chown -R ec2-user:ec2-user /opt/backstage-sandbox
 
 export AWS_REGION PLATFORM_REPO_CONTENT_HASH BACKSTAGE_AUTH_REVISION
 /usr/local/sbin/bootstrap-platform-host
+sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/install-ec2-caddy.sh \
+  "$AWS_REGION" "${route53_hosted_zone_id}" \
+  "${backstage_hostname}" "${argocd_hostname}"
 sudo -iu ec2-user env ARGOCD_HTTPS_HOST_PORT=30443 BACKSTAGE_HTTP_HOST_PORT=30070 \
   /opt/backstage-sandbox/scripts/lab/bootstrap-cluster.sh
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/configure-ec2-argocd-github-auth.sh \
@@ -49,8 +52,7 @@ sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/configure-ec2-backstage-sec
   "${backstage_url}"
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/deploy-ec2-argocd-apps.sh \
   "${git_repository_url}" "${git_revision}"
-sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/install-ec2-caddy.sh \
-  "$AWS_REGION" "${route53_hosted_zone_id}" \
+sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/verify-ec2-caddy.sh \
   "${backstage_hostname}" "${argocd_hostname}"
 systemctl restart amazon-ssm-agent
 trap - EXIT
