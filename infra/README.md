@@ -15,8 +15,9 @@ The `just deploy` deployment creates:
 - one `t4g.medium` Amazon Linux 2023 EC2 workstation
 - one encrypted 30 GiB gp3 root volume
 - an Elastic IP
-- a separately managed security group exposing HTTP only to the Terraform
-  caller's current public IPv4 address, with administration through SSM
+- a separately managed security group exposing HTTP port 80 and Argo CD HTTPS
+  port 8443 only to the Terraform caller's current public IPv4 address, with
+  administration through SSM
 - a private, encrypted bootstrap S3 bucket with force-destroy enabled
 
 Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
@@ -31,8 +32,9 @@ credentials from SSM Parameter Store and creates runtime-only Kubernetes
 Secrets for those values and ECR image pulls. It then applies the EC2 Backstage
 `Application` and the repo-owned
 `ApplicationSet`, which continuously discovers committed `apps/*/argocd`
-definitions on `main` and polls Git once per minute. It does not configure
-External Secrets Operator or ingress.
+definitions on `main` and polls Git once per minute. The EC2 k3d cluster maps
+host port 8443 to Argo CD's native HTTPS service through a NodePort. It does not
+configure External Secrets Operator or an ingress controller.
 
 Terraform also packages the current contents of `config/`, `k8s/`,
 `scripts/lab/`, `crossplane/providers/`, and
@@ -165,8 +167,23 @@ just bootstrap-logs
 just shell
 ```
 
-The `platform_host` output includes `backstage_url` for Backstage on port 80
-and `argocd_url` for Argo CD on port 8080.
+The `platform_host` output includes `backstage_url` for the reserved Backstage
+port 80 endpoint and `argocd_url` for Argo CD on HTTPS port 8443. Argo CD uses
+its generated self-signed certificate, so the browser displays a certificate
+warning when opening the Elastic IP URL. This path keeps Argo CD's TLS server
+enabled and does not set `server.insecure`.
+
+Get the initial Argo CD administrator password from an EC2 session:
+
+```bash
+just shell
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' | base64 --decode
+```
+
+Sign in at the printed `argocd_url` as `admin`. If your public IP changes,
+reapply the security stack so its current-IP data source refreshes the allowed
+`/32`.
 
 `just bootstrap-logs` polls EC2's latest serial-console output, prints newly
 available user-data bytes, and returns when bootstrap reports success or

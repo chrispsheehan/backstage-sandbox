@@ -7,6 +7,8 @@ by the separate `security` and `platform_role` stacks.
 The module discovers the existing VPC by exact `Name` tag and public subnets by
 `*public*` `Name` tag. EC2 user data installs Docker, kubectl, Helm, and k3d,
 then creates a k3d cluster with Argo CD, Crossplane core, and the AWS providers.
+On EC2, k3d maps host port 8443 to Argo CD's HTTPS NodePort while preserving
+Argo CD's native TLS mode.
 Before Argo CD deploys Backstage from the EC2 overlay, user data reads its
 backend secret and GitHub OAuth values from SSM Parameter Store and creates the
 runtime and ECR pull Secrets in Kubernetes. This module owns those

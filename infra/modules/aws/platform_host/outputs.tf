@@ -19,7 +19,7 @@ output "backstage_url" {
 }
 
 output "argocd_url" {
-  value = "http://${aws_eip.this.public_ip}:8080"
+  value = "https://${aws_eip.this.public_ip}:8443"
 }
 
 output "backstage_parameter_prefix" {

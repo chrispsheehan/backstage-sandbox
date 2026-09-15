@@ -1,12 +1,20 @@
 resource "aws_security_group" "platform" {
   name        = "${var.base_name}-platform"
-  description = "Public HTTP ingress for the development platform host"
+  description = "Public web ingress for the development platform host"
   vpc_id      = data.aws_vpc.this.id
 
   ingress {
     description = "Reserved platform HTTP ingress"
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [local.caller_ipv4_cidr]
+  }
+
+  ingress {
+    description = "Argo CD HTTPS ingress"
+    from_port   = 8443
+    to_port     = 8443
     protocol    = "tcp"
     cidr_blocks = [local.caller_ipv4_cidr]
   }

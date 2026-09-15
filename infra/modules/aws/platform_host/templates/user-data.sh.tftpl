@@ -39,7 +39,8 @@ chown -R ec2-user:ec2-user /opt/backstage-sandbox
 
 export AWS_REGION PLATFORM_REPO_CONTENT_HASH BACKSTAGE_AUTH_REVISION
 /usr/local/sbin/bootstrap-platform-host
-sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/bootstrap-cluster.sh
+sudo -iu ec2-user env ARGOCD_HTTPS_HOST_PORT=8443 \
+  /opt/backstage-sandbox/scripts/lab/bootstrap-cluster.sh
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/install-crossplane-providers.sh ec2
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/configure-ec2-backstage-secrets.sh \
   "$AWS_REGION" "${ecr_repository_url}" "${backstage_parameter_prefix}"

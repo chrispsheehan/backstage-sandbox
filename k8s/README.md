@@ -82,7 +82,7 @@ application manifests. They are patched into
 
 ## Access Pattern
 
-This lab intentionally avoids ingress, TLS termination, and external DNS.
+The local lab intentionally avoids ingress, TLS termination, and external DNS.
 
 Use port-forwarding:
 
@@ -92,6 +92,13 @@ just start
 
 Argo CD is there for GitOps inspection, and Backstage is exposed locally via a
 service port-forward on `http://localhost:7007`.
+
+The optional EC2 bootstrap instead maps Elastic IP port 8443 through k3d to
+`Service/argocd-server` NodePort 30443. Open the Terraform `argocd_url` output
+and accept the warning for Argo CD's self-signed certificate. Argo CD continues
+to terminate TLS itself; `server.insecure` is not enabled. Both the security
+group rule and the existing HTTP port 80 rule are restricted to the Terraform
+caller's current public IPv4 address.
 
 ## Local Auth
 
