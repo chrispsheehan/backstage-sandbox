@@ -100,6 +100,12 @@ to terminate TLS itself; `server.insecure` is not enabled. Both the security
 group rule and the existing HTTP port 80 rule are restricted to the Terraform
 caller's current public IPv4 address.
 
+EC2 user data also renders the EC2-specific Dex configuration from the GitHub
+OAuth values held in SSM Parameter Store. Its callback URL is
+`https://<elastic-ip>:8443/api/dex/callback`. The EC2 RBAC override gives every
+authenticated GitHub user the admin role, matching the disposable local lab,
+and leaves the built-in admin account enabled as a fallback.
+
 ## Local Auth
 
 Argo CD local auth is configured for convenience rather than strict isolation:

@@ -11,12 +11,13 @@ On EC2, k3d maps host port 8443 to Argo CD's HTTPS NodePort while preserving
 Argo CD's native TLS mode.
 Before Argo CD deploys Backstage from the EC2 overlay, user data reads its
 backend secret and GitHub OAuth values from SSM Parameter Store and creates the
-runtime and ECR pull Secrets in Kubernetes. This module owns those
-SecureStrings beneath a randomized SSM path. The random path changes after a
-complete destroy so Parameter Store's delayed deletion does not block
-immediate recreation; the sensitive values are stored in encrypted Terraform
-state. Terraform generates the 64-character backend secret; only the OAuth
-values come from `.env`.
+runtime and ECR pull Secrets in Kubernetes. It also configures Argo CD's Dex
+GitHub connector with those OAuth values and the external Elastic IP URL. This
+module owns those SecureStrings beneath a randomized SSM path. The random path
+changes after a complete destroy so Parameter Store's delayed deletion does not
+block immediate recreation; the sensitive values are stored in encrypted
+Terraform state. Terraform generates the 64-character backend secret; only the
+OAuth values come from `.env`.
 
 Terraform creates a private, encrypted bootstrap bucket with `force_destroy =
 true`, stages the repo's `config/`, `crossplane/`, `k8s/`, and shared

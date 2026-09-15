@@ -29,8 +29,9 @@ providers, and configures them to use the EC2 instance profile through
 the AWS SDK's ambient credential chain. Before installing the Argo CD
 applications, it reads the Backstage backend secret and GitHub OAuth
 credentials from SSM Parameter Store and creates runtime-only Kubernetes
-Secrets for those values and ECR image pulls. It then applies the EC2 Backstage
-`Application` and the repo-owned
+Secrets for those values and ECR image pulls. The same OAuth values configure
+Argo CD's Dex connector with the Elastic IP URL. It then applies the EC2
+Backstage `Application` and the repo-owned
 `ApplicationSet`, which continuously discovers committed `apps/*/argocd`
 definitions on `main` and polls Git once per minute. The EC2 k3d cluster maps
 host port 8443 to Argo CD's native HTTPS service through a NodePort. It does not
@@ -89,7 +90,8 @@ state bucket must already exist. Destroying the live stacks does not remove it.
   the Terraform-managed SSM parameters. Terraform generates `BACKEND_SECRET`.
 
 The public Git repository does not need an Argo CD repository credential. The
-OAuth values are for the Backstage runtime rather than repository access.
+OAuth values are for Backstage and Argo CD user authentication rather than
+repository access.
 
 ## Private GitHub Repository
 
@@ -173,6 +175,22 @@ its generated self-signed certificate, so the browser displays a certificate
 warning when opening the Elastic IP URL. This path keeps Argo CD's TLS server
 enabled and does not set `server.insecure`.
 
+The Argo CD login page offers **Log in via GitHub** after bootstrap. Once the
+first deploy prints `public_ip`, add this exact authorization callback URL to
+the GitHub OAuth app used by `.env`:
+
+```text
+https://<elastic-ip>:8443/api/dex/callback
+```
+
+GitHub permits multiple callback URLs on an OAuth app, so this can sit alongside
+the Backstage callback. Adding it after the deploy does not require another
+Terraform apply.
+
+For this disposable lab, any authenticated GitHub user receives Argo CD admin
+access. Network access remains restricted to the Terraform caller's current
+public `/32`. The built-in `admin` login remains available as a fallback.
+
 Get the initial Argo CD administrator password from an EC2 session:
 
 ```bash
@@ -181,9 +199,9 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 --decode
 ```
 
-Sign in at the printed `argocd_url` as `admin`. If your public IP changes,
-reapply the security stack so its current-IP data source refreshes the allowed
-`/32`.
+Sign in at the printed `argocd_url` through GitHub, or use the built-in `admin`
+account. If your public IP changes, reapply the security stack so its current-IP
+data source refreshes the allowed `/32`.
 
 `just bootstrap-logs` polls EC2's latest serial-console output, prints newly
 available user-data bytes, and returns when bootstrap reports success or

@@ -105,6 +105,7 @@ resource "aws_instance" "this" {
       aws_ssm_parameter.backstage_github_client_secret.version,
     ])
     backstage_parameter_prefix  = "/${var.base_name}/backstage/${random_id.backstage_parameters.hex}"
+    argocd_url                  = "https://${aws_eip.this.public_ip}:8443"
     bootstrap_script_base64gzip = base64gzip(var.bootstrap_script)
     ecr_repository_url          = var.ecr_repository_url
     git_repository_url          = "https://github.com/${var.github_repo}.git"
