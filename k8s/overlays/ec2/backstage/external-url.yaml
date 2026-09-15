@@ -10,4 +10,8 @@ spec:
         - name: backstage
           env:
             - name: APP_BASE_URL
-              value: http://backstage.chrispsheehan.com
+              value: null
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-secrets
+                  key: APP_BASE_URL

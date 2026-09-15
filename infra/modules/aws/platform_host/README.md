@@ -9,8 +9,11 @@ The module discovers the existing VPC by exact `Name` tag, public subnets by
 hosted zone by name. It creates Backstage and Argo CD A records targeting the
 module-owned Elastic IP. EC2 user data installs Docker, kubectl, Helm, and k3d,
 then creates a k3d cluster with Argo CD, Crossplane core, and the AWS providers.
-On EC2, k3d maps host port 80 to the Backstage NodePort and port 8443 to Argo
-CD's HTTPS NodePort while preserving Argo CD's native TLS mode.
+On EC2, k3d binds the Backstage and Argo CD NodePorts to host loopback ports
+30070 and 30443. User data builds and starts a host-networked Caddy container
+on public ports 80 and 443. Caddy routes by hostname, obtains its certificates
+through Route 53 DNS-01, and preserves Argo CD's native TLS mode on the
+loopback upstream.
 Before Argo CD deploys Backstage from the EC2 overlay, user data reads its
 backend secret and GitHub OAuth values from SSM Parameter Store and creates the
 runtime and ECR pull Secrets in Kubernetes. It also configures Argo CD's Dex
@@ -21,6 +24,11 @@ changes after a complete destroy so Parameter Store's delayed deletion does not
 block immediate recreation; the sensitive values are stored in encrypted
 Terraform state. Terraform generates the 64-character backend secret; only the
 OAuth values come from `.env`.
+
+The module adds a narrow inline policy to the supplied instance-profile role.
+It permits Caddy to list records in the discovered zone and change only TXT
+records for the two `_acme-challenge` names. Caddy's certificate state lives
+under `/opt/backstage-sandbox/.caddy` and is ephemeral with the host.
 
 Terraform creates a private, encrypted bootstrap bucket with `force_destroy =
 true`, stages the repo's `config/`, `crossplane/`, `k8s/`, and shared

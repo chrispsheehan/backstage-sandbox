@@ -94,17 +94,18 @@ just start
 Argo CD is there for GitOps inspection, and Backstage is exposed locally via a
 service port-forward on `http://localhost:7007`.
 
-The optional EC2 bootstrap maps Elastic IP port 80 through k3d to Backstage
-NodePort 30070 and port 8443 to `Service/argocd-server` NodePort 30443. Route 53
-maps `backstage.chrispsheehan.com` and `argocd.chrispsheehan.com` to that same
-Elastic IP; the ports select the destination service. Argo CD continues to
-terminate TLS itself, so its certificate warning remains and `server.insecure`
-is not enabled. Both security-group rules are restricted to the Terraform
-caller's current public IPv4 address.
+The optional EC2 bootstrap binds Backstage NodePort 30070 and Argo CD HTTPS
+NodePort 30443 to EC2 loopback only. A host-networked Caddy container is the
+sole public entry point on ports 80 and 443. Route 53 maps
+`backstage.chrispsheehan.com` and `argocd.chrispsheehan.com` to the same Elastic
+IP, and Caddy selects the service from the hostname while terminating
+browser-trusted HTTPS. Argo CD retains its own TLS on the loopback upstream and
+`server.insecure` is not enabled. Both public security-group rules are
+restricted to the Terraform caller's current public IPv4 address.
 
 EC2 user data also renders the EC2-specific Dex configuration from the GitHub
 OAuth values held in SSM Parameter Store. Its callback URL is
-`https://argocd.chrispsheehan.com:8443/api/dex/callback`. The EC2 RBAC override
+`https://argocd.chrispsheehan.com/api/dex/callback`. The EC2 RBAC override
 gives every authenticated GitHub user the admin role, matching the disposable
 local lab, and the EC2-specific `argocd-cm` disables the built-in admin account.
 GitHub is therefore the only interactive login path on EC2. Local Argo CD

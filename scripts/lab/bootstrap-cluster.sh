@@ -26,14 +26,14 @@ if ! k3d cluster list | awk 'NR > 1 { print $1 }' | grep -qx "${cluster_name}"; 
       echo "ARGOCD_HTTPS_HOST_PORT must be numeric." >&2
       exit 1
     fi
-    cluster_create_args+=(--port "${argocd_https_host_port}:30443@server:0")
+    cluster_create_args+=(--port "127.0.0.1:${argocd_https_host_port}:30443@server:0")
   fi
   if [[ -n "${backstage_http_host_port}" ]]; then
     if [[ ! "${backstage_http_host_port}" =~ ^[0-9]+$ ]]; then
       echo "BACKSTAGE_HTTP_HOST_PORT must be numeric." >&2
       exit 1
     fi
-    cluster_create_args+=(--port "${backstage_http_host_port}:30070@server:0")
+    cluster_create_args+=(--port "127.0.0.1:${backstage_http_host_port}:30070@server:0")
   fi
   k3d cluster create "${cluster_name}" "${cluster_create_args[@]}"
 else

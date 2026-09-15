@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "$#" -ne 3 ]]; then
-  echo "Usage: $0 <aws-region> <ecr-repository-url> <ssm-parameter-prefix>" >&2
+if [[ "$#" -ne 4 ]]; then
+  echo "Usage: $0 <aws-region> <ecr-repository-url> <ssm-parameter-prefix> <backstage-url>" >&2
   exit 1
 fi
 
 aws_region="$1"
 repository_url="$2"
 parameter_prefix="${3%/}"
+backstage_url="${4%/}"
 registry="${repository_url%%/*}"
 temporary_dir="$(mktemp -d)"
 
@@ -50,8 +51,8 @@ backend_secret="$(read_parameter "${parameter_prefix}/backend-secret")"
 github_client_id="$(read_parameter "${parameter_prefix}/github-client-id")"
 github_client_secret="$(read_parameter "${parameter_prefix}/github-client-secret")"
 
-printf 'BACKEND_SECRET=%s\nAUTH_GITHUB_CLIENT_ID=%s\nAUTH_GITHUB_CLIENT_SECRET=%s\n' \
-  "${backend_secret}" "${github_client_id}" "${github_client_secret}" \
+printf 'BACKEND_SECRET=%s\nAUTH_GITHUB_CLIENT_ID=%s\nAUTH_GITHUB_CLIENT_SECRET=%s\nAPP_BASE_URL=%s\n' \
+  "${backend_secret}" "${github_client_id}" "${github_client_secret}" "${backstage_url}" \
   >"${temporary_dir}/backstage.env"
 
 ecr_password="$(aws ecr get-login-password --region "${aws_region}")"

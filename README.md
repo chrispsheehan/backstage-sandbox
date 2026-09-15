@@ -16,7 +16,8 @@ creates a k3d cluster with Argo CD and Crossplane core and installs an
 `ApplicationSet` that continuously discovers committed `apps/*/argocd`
 definitions. It also deploys Backstage from the EC2 Kustomize overlay after
 creating its runtime and ECR pull secrets from SSM and the instance role. It
-uses two records in the existing `chrispsheehan.com` hosted zone while avoiding
+uses two records in the existing `chrispsheehan.com` hosted zone and an
+EC2-hosted Caddy reverse proxy with public ACME certificates while avoiding
 EKS, load balancers, NAT gateways, and hosted-zone creation. See
 [infra/README.md](infra/README.md) for its architecture, prerequisites, cost,
 secret flow, and Terragrunt commands.
@@ -86,10 +87,10 @@ apps accept up to 10 authorization callback URLs, so register these four:
 
 - `http://localhost:7007/api/auth/github/handler/frame`
 - `http://localhost:8080/api/dex/callback`
-- `http://backstage.chrispsheehan.com/api/auth/github/handler/frame`
-- `https://argocd.chrispsheehan.com:8443/api/dex/callback`
+- `https://backstage.chrispsheehan.com/api/auth/github/handler/frame`
+- `https://argocd.chrispsheehan.com/api/dex/callback`
 
-Use `http://backstage.chrispsheehan.com` as the OAuth app's Homepage URL. The
+Use `https://backstage.chrispsheehan.com` as the OAuth app's Homepage URL. The
 local Backstage callback still uses port 7007 because local Backstage is served
 from the in-cluster app backend rather than a separate frontend dev server.
 
@@ -102,7 +103,7 @@ GitHub UI steps:
 3. Open `OAuth Apps`.
 4. Click `New OAuth App` or `Register a new application`.
 5. Set `Application name` to something like `backstage-sandbox`.
-6. Set `Homepage URL` to `http://backstage.chrispsheehan.com`.
+6. Set `Homepage URL` to `https://backstage.chrispsheehan.com`.
 7. Add all four authorization callback URLs listed above.
 8. Confirm each callback is saved before deploying EC2, where Argo CD password
    login is disabled.

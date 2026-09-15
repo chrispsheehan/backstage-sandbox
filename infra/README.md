@@ -16,9 +16,10 @@ The `just deploy` deployment creates:
 - one encrypted 30 GiB gp3 root volume
 - an Elastic IP
 - two A records in the existing public `chrispsheehan.com` Route 53 hosted zone
-- a separately managed security group exposing HTTP port 80 and Argo CD HTTPS
-  port 8443 only to the Terraform caller's current public IPv4 address, with
-  administration through SSM
+- a Caddy reverse-proxy container built on the host with Route 53 DNS-01 support
+- a separately managed security group exposing Caddy ports 80 and 443 only to
+  the Terraform caller's current public IPv4 address, with administration
+  through SSM
 - a private, encrypted bootstrap S3 bucket with force-destroy enabled
 
 Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
@@ -34,10 +35,10 @@ Secrets for those values and ECR image pulls. The same OAuth values configure
 Argo CD's Dex connector with its stable Route 53 URL. It then applies the EC2
 Backstage `Application` and the repo-owned
 `ApplicationSet`, which continuously discovers committed `apps/*/argocd`
-definitions on `main` and polls Git once per minute. The EC2 k3d cluster maps
-host port 80 to Backstage and port 8443 to Argo CD through separate NodePorts.
-It does not configure External Secrets Operator, an ingress controller, or a
-reverse proxy.
+definitions on `main` and polls Git once per minute. Caddy owns host ports 80
+and 443, terminates browser-trusted HTTPS, and selects Backstage or Argo CD from
+the requested hostname. Their k3d NodePorts bind to EC2 loopback only. It does
+not configure External Secrets Operator or an ingress controller.
 
 Terraform also packages the current contents of `config/`, `k8s/`,
 `scripts/lab/`, `crossplane/providers/`, and
@@ -52,9 +53,10 @@ snapshot stays deterministic.
 The bucket has `force_destroy = true`, so destroying `platform_host` removes
 the ZIP and bucket together.
 
-There is no EKS cluster, load balancer, NAT gateway, hosted-zone creation, TLS
-certificate for Backstage, or production environment. The existing hosted zone
-is discovered rather than managed.
+There is no EKS cluster, load balancer, NAT gateway, hosted-zone creation, or
+production environment. The existing hosted zone is discovered rather than
+managed. Caddy obtains and renews its public certificates through ACME without
+requiring an account email.
 
 ## Existing Network Prerequisite
 
@@ -173,23 +175,28 @@ just bootstrap-logs
 just shell
 ```
 
-The `platform_host` output includes `http://backstage.chrispsheehan.com` and
-`https://argocd.chrispsheehan.com:8443`. Both Route 53 A records target the
-Elastic IP. Backstage uses plain HTTP in this disposable lab. Argo CD uses its
-generated self-signed certificate, so the browser still displays a certificate
-warning. Argo CD's TLS server remains enabled and does not set
-`server.insecure`.
+The `platform_host` output includes `https://backstage.chrispsheehan.com` and
+`https://argocd.chrispsheehan.com`. Both Route 53 A records target the Elastic
+IP, and Caddy selects the service from the requested hostname. Caddy obtains
+browser-trusted certificates with a Route 53 DNS-01 challenge; the EC2 role can
+change only the two required `_acme-challenge` TXT records. Its certificate
+state lives under `/opt/backstage-sandbox/.caddy`, so container restarts retain
+it while replacing the disposable host starts with fresh state.
+
+Argo CD's TLS server remains enabled and does not set `server.insecure`. Caddy
+accepts Argo CD's generated certificate only on the loopback-only upstream hop
+to `127.0.0.1:30443`; clients see Caddy's trusted certificate instead.
 
 The Argo CD login page offers **Log in via GitHub** after bootstrap. Add this
 authorization callback URL to the GitHub OAuth app used by `.env` before
 deploying:
 
 ```text
-https://argocd.chrispsheehan.com:8443/api/dex/callback
+https://argocd.chrispsheehan.com/api/dex/callback
 ```
 
 The same OAuth app can include the EC2 Backstage callback
-`http://backstage.chrispsheehan.com/api/auth/github/handler/frame` and both
+`https://backstage.chrispsheehan.com/api/auth/github/handler/frame` and both
 local callbacks. The root README lists the complete app setup.
 
 For this disposable lab, any authenticated GitHub user receives Argo CD admin

@@ -5,9 +5,47 @@ data "aws_vpc" "this" {
   }
 }
 
+data "aws_partition" "current" {}
+
+data "aws_iam_instance_profile" "platform" {
+  name = var.instance_profile_name
+}
+
 data "aws_route53_zone" "public" {
   name         = "${local.hosted_zone_name}."
   private_zone = false
+}
+
+data "aws_iam_policy_document" "caddy_route53" {
+  statement {
+    sid       = "ReadAcmeDnsChanges"
+    actions   = ["route53:GetChange"]
+    resources = ["arn:${data.aws_partition.current.partition}:route53:::change/*"]
+  }
+
+  statement {
+    sid       = "ListAcmeDnsRecords"
+    actions   = ["route53:ListResourceRecordSets"]
+    resources = ["arn:${data.aws_partition.current.partition}:route53:::hostedzone/${data.aws_route53_zone.public.zone_id}"]
+  }
+
+  statement {
+    sid       = "ChangeAcmeDnsRecords"
+    actions   = ["route53:ChangeResourceRecordSets"]
+    resources = ["arn:${data.aws_partition.current.partition}:route53:::hostedzone/${data.aws_route53_zone.public.zone_id}"]
+
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "route53:ChangeResourceRecordSetsNormalizedRecordNames"
+      values   = local.acme_record_names
+    }
+
+    condition {
+      test     = "ForAllValues:StringEquals"
+      variable = "route53:ChangeResourceRecordSetsRecordTypes"
+      values   = ["TXT"]
+    }
+  }
 }
 
 data "aws_subnets" "public" {

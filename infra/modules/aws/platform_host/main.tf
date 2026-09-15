@@ -16,6 +16,12 @@ resource "aws_ssm_document" "run_shell" {
   })
 }
 
+resource "aws_iam_role_policy" "caddy_route53" {
+  name   = "${var.base_name}-caddy-route53"
+  role   = data.aws_iam_instance_profile.platform.role_name
+  policy = data.aws_iam_policy_document.caddy_route53.json
+}
+
 data "archive_file" "platform_repo" {
   type        = "zip"
   output_path = "${path.root}/.terraform/platform-repo.zip"
@@ -105,13 +111,17 @@ resource "aws_instance" "this" {
       aws_ssm_parameter.backstage_github_client_secret.version,
     ])
     backstage_parameter_prefix  = "/${var.base_name}/backstage/${random_id.backstage_parameters.hex}"
+    argocd_hostname             = local.argocd_hostname
     argocd_url                  = local.argocd_url
+    backstage_hostname          = local.backstage_hostname
+    backstage_url               = local.backstage_url
     bootstrap_script_base64gzip = base64gzip(var.bootstrap_script)
     ecr_repository_url          = var.ecr_repository_url
     git_repository_url          = "https://github.com/${var.github_repo}.git"
     git_revision                = var.git_revision
     platform_repo_content_hash  = data.archive_file.platform_repo.output_sha256
     platform_repo_s3_uri        = "s3://${aws_s3_bucket.bootstrap.bucket}/${aws_s3_object.platform_repo.key}"
+    route53_hosted_zone_id      = data.aws_route53_zone.public.zone_id
   })
 
   metadata_options {
@@ -127,6 +137,7 @@ resource "aws_instance" "this" {
   }
 
   depends_on = [
+    aws_iam_role_policy.caddy_route53,
     aws_s3_object.platform_repo,
     aws_ssm_parameter.backstage_backend_secret,
     aws_ssm_parameter.backstage_github_client_id,

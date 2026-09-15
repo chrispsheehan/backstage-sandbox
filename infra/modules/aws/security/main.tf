@@ -4,7 +4,7 @@ resource "aws_security_group" "platform" {
   vpc_id      = data.aws_vpc.this.id
 
   ingress {
-    description = "Reserved platform HTTP ingress"
+    description = "Caddy HTTP redirect ingress"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -12,9 +12,9 @@ resource "aws_security_group" "platform" {
   }
 
   ingress {
-    description = "Argo CD HTTPS ingress"
-    from_port   = 8443
-    to_port     = 8443
+    description = "Caddy HTTPS ingress"
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = [local.caller_ipv4_cidr]
   }
