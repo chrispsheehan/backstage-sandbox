@@ -45,8 +45,8 @@ tg-all env op:
       --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}" \
       run --all {{ op }}
 
-# Build and push a versioned ARM64 Backstage image to the existing ECR repository.
-push-image version:
+# Root `just push-image` delegates to this CI workflow implementation.
+_push-image version:
     #!/usr/bin/env bash
     set -euo pipefail
 

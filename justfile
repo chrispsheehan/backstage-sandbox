@@ -23,6 +23,10 @@ infra-format:
     terraform fmt -recursive "{{ PROJECT_DIR }}/infra"
     terragrunt hcl fmt --working-dir "{{ PROJECT_DIR }}/infra"
 
+# Build and push a versioned ARM64 Backstage image to the existing ECR repository.
+push-image:
+    just --justfile "{{ PROJECT_DIR }}/scripts/ci/justfile" _push-image "$(git rev-parse HEAD)"
+
 # Apply all dev stacks, then follow EC2 bootstrap output to completion.
 deploy:
     #!/usr/bin/env bash

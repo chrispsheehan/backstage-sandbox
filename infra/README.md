@@ -141,7 +141,7 @@ uses the reverse order.
 Apply the ECR stack, then build and push a Backstage image separately:
 
 ```bash
-just push-image "$(git rev-parse HEAD)"
+just push-image
 ```
 
 The required version must be a 7-40 character lowercase Git hash. This command
