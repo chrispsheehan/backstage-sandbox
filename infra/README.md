@@ -189,19 +189,13 @@ Terraform apply.
 
 For this disposable lab, any authenticated GitHub user receives Argo CD admin
 access. Network access remains restricted to the Terraform caller's current
-public `/32`. The built-in `admin` login remains available as a fallback.
+public `/32`. The EC2 configuration disables Argo CD's built-in `admin` account,
+so GitHub is the only interactive login path. Add the OAuth callback before
+depending on the UI; there is no local-account fallback on EC2.
 
-Get the initial Argo CD administrator password from an EC2 session:
-
-```bash
-just shell
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath='{.data.password}' | base64 --decode
-```
-
-Sign in at the printed `argocd_url` through GitHub, or use the built-in `admin`
-account. If your public IP changes, reapply the security stack so its current-IP
-data source refreshes the allowed `/32`.
+Sign in at the printed `argocd_url` through GitHub. If your public IP changes,
+reapply the security stack so its current-IP data source refreshes the allowed
+`/32`.
 
 `just bootstrap-logs` polls EC2's latest serial-console output, prints newly
 available user-data bytes, and returns when bootstrap reports success or

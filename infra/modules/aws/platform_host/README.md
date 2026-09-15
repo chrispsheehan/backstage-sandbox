@@ -12,8 +12,9 @@ Argo CD's native TLS mode.
 Before Argo CD deploys Backstage from the EC2 overlay, user data reads its
 backend secret and GitHub OAuth values from SSM Parameter Store and creates the
 runtime and ECR pull Secrets in Kubernetes. It also configures Argo CD's Dex
-GitHub connector with those OAuth values and the external Elastic IP URL. This
-module owns those SecureStrings beneath a randomized SSM path. The random path
+GitHub connector with those OAuth values and the external Elastic IP URL, and
+disables Argo CD's built-in admin account on EC2. This module owns those
+SecureStrings beneath a randomized SSM path. The random path
 changes after a complete destroy so Parameter Store's delayed deletion does not
 block immediate recreation; the sensitive values are stored in encrypted
 Terraform state. Terraform generates the 64-character backend secret; only the

@@ -104,7 +104,9 @@ EC2 user data also renders the EC2-specific Dex configuration from the GitHub
 OAuth values held in SSM Parameter Store. Its callback URL is
 `https://<elastic-ip>:8443/api/dex/callback`. The EC2 RBAC override gives every
 authenticated GitHub user the admin role, matching the disposable local lab,
-and leaves the built-in admin account enabled as a fallback.
+and the EC2-specific `argocd-cm` disables the built-in admin account. GitHub is
+therefore the only interactive login path on EC2. Local Argo CD retains its
+built-in admin account.
 
 ## Local Auth
 
