@@ -59,7 +59,9 @@ the ZIP and bucket together.
 There is no EKS cluster, load balancer, NAT gateway, hosted-zone creation, or
 production environment. The existing hosted zone is discovered rather than
 managed. Caddy obtains and renews its public certificates through ACME without
-requiring an account email.
+requiring an account email. Its Route 53 provider waits for each DNS change to
+reach `INSYNC` before ACME validation, avoiding secondary-validator races while
+the temporary TXT record propagates.
 
 ## Existing Network Prerequisite
 
@@ -215,7 +217,9 @@ reapply the security stack so its current-IP data source refreshes the allowed
 
 `just bootstrap-logs` polls EC2's latest serial-console output, prints newly
 available user-data bytes, and returns when bootstrap reports success or
-failure. It emits a waiting message after 30 seconds without new output because
+failure. If AWS rewrites or truncates the console buffer rather than appending
+to it, the follower prints the latest 200 lines so the terminal failure remains
+visible. It emits a waiting message after 30 seconds without new output because
 console output can arrive in bursts rather than immediately. This path works
 while the SSM agent is deliberately offline during bootstrap; `just shell`
 becomes available only after bootstrap completes or fails.

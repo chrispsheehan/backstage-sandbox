@@ -116,12 +116,12 @@ _bootstrap-logs:
     cd "{{ PROJECT_DIR }}/infra/live/dev/aws/platform_host"
     instance_id="$(terragrunt output -raw instance_id)"
     console_file="$(mktemp)"
+    previous_console_file="$(mktemp)"
     cleanup() {
-        rm -f "${console_file}"
+        rm -f "${console_file}" "${previous_console_file}"
     }
     trap cleanup EXIT
 
-    printed_bytes=0
     unchanged_polls=0
     echo "Following user-data console output for ${instance_id}."
     while true; do
@@ -136,16 +136,23 @@ _bootstrap-logs:
             # The AWS CLI decodes the API's base64-encoded Output field.
             printf '%s\n' "${console_output}" >"${console_file}"
             available_bytes="$(wc -c <"${console_file}" | tr -d ' ')"
-            if (( available_bytes < printed_bytes )); then
-                printed_bytes=0
-            fi
-            if (( available_bytes > printed_bytes )); then
-                tail -c "+$((printed_bytes + 1))" "${console_file}"
-                printed_bytes="${available_bytes}"
+            previous_bytes="$(wc -c <"${previous_console_file}" | tr -d ' ')"
+
+            if cmp -s "${previous_console_file}" "${console_file}"; then
+                unchanged_polls=$((unchanged_polls + 1))
+            elif (( previous_bytes == 0 )); then
+                cat "${console_file}"
+                unchanged_polls=0
+            elif (( available_bytes >= previous_bytes )) && \
+              head -c "${previous_bytes}" "${console_file}" | cmp -s "${previous_console_file}" -; then
+                tail -c "+$((previous_bytes + 1))" "${console_file}"
                 unchanged_polls=0
             else
-                unchanged_polls=$((unchanged_polls + 1))
+                echo "EC2 console buffer changed; showing its latest 200 lines." >&2
+                tail -n 200 "${console_file}"
+                unchanged_polls=0
             fi
+            cp "${console_file}" "${previous_console_file}"
 
             if grep -q 'Platform bootstrap failed with exit code' "${console_file}"; then
                 echo "EC2 user data failed; inspect the output above." >&2
