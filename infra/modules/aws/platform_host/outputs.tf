@@ -15,11 +15,11 @@ output "public_ip" {
 }
 
 output "backstage_url" {
-  value = "http://${aws_eip.this.public_ip}"
+  value = local.backstage_url
 }
 
 output "argocd_url" {
-  value = "https://${aws_eip.this.public_ip}:8443"
+  value = local.argocd_url
 }
 
 output "backstage_parameter_prefix" {

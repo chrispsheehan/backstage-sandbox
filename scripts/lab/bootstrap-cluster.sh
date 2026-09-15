@@ -3,6 +3,7 @@ set -euo pipefail
 
 cluster_name="${CLUSTER_NAME:-platform-lab}"
 argocd_https_host_port="${ARGOCD_HTTPS_HOST_PORT:-}"
+backstage_http_host_port="${BACKSTAGE_HTTP_HOST_PORT:-}"
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_dir="$(cd -- "${script_dir}/../.." && pwd)"
 
@@ -26,6 +27,13 @@ if ! k3d cluster list | awk 'NR > 1 { print $1 }' | grep -qx "${cluster_name}"; 
       exit 1
     fi
     cluster_create_args+=(--port "${argocd_https_host_port}:30443@server:0")
+  fi
+  if [[ -n "${backstage_http_host_port}" ]]; then
+    if [[ ! "${backstage_http_host_port}" =~ ^[0-9]+$ ]]; then
+      echo "BACKSTAGE_HTTP_HOST_PORT must be numeric." >&2
+      exit 1
+    fi
+    cluster_create_args+=(--port "${backstage_http_host_port}:30070@server:0")
   fi
   k3d cluster create "${cluster_name}" "${cluster_create_args[@]}"
 else
@@ -53,6 +61,9 @@ if [[ -n "${argocd_https_host_port}" ]]; then
   kubectl apply --server-side --force-conflicts \
     -f "${project_dir}/k8s/bootstrap/argocd/ec2-server-nodeport.yaml"
   echo "Argo CD HTTPS is mapped to host port ${argocd_https_host_port}."
+fi
+if [[ -n "${backstage_http_host_port}" ]]; then
+  echo "Backstage HTTP is mapped to host port ${backstage_http_host_port}."
 fi
 
 helm repo add crossplane-stable https://charts.crossplane.io/stable >/dev/null 2>&1 || true

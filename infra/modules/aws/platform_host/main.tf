@@ -105,7 +105,7 @@ resource "aws_instance" "this" {
       aws_ssm_parameter.backstage_github_client_secret.version,
     ])
     backstage_parameter_prefix  = "/${var.base_name}/backstage/${random_id.backstage_parameters.hex}"
-    argocd_url                  = "https://${aws_eip.this.public_ip}:8443"
+    argocd_url                  = local.argocd_url
     bootstrap_script_base64gzip = base64gzip(var.bootstrap_script)
     ecr_repository_url          = var.ecr_repository_url
     git_repository_url          = "https://github.com/${var.github_repo}.git"
@@ -141,4 +141,20 @@ resource "aws_eip" "this" {
 resource "aws_eip_association" "this" {
   allocation_id = aws_eip.this.id
   instance_id   = aws_instance.this.id
+}
+
+resource "aws_route53_record" "backstage" {
+  zone_id = data.aws_route53_zone.public.zone_id
+  name    = local.backstage_hostname
+  type    = "A"
+  ttl     = 60
+  records = [aws_eip.this.public_ip]
+}
+
+resource "aws_route53_record" "argocd" {
+  zone_id = data.aws_route53_zone.public.zone_id
+  name    = local.argocd_hostname
+  type    = "A"
+  ttl     = 60
+  records = [aws_eip.this.public_ip]
 }

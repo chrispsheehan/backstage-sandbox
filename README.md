@@ -16,7 +16,8 @@ creates a k3d cluster with Argo CD and Crossplane core and installs an
 `ApplicationSet` that continuously discovers committed `apps/*/argocd`
 definitions. It also deploys Backstage from the EC2 Kustomize overlay after
 creating its runtime and ECR pull secrets from SSM and the instance role. It
-deliberately avoids EKS, load balancers, NAT gateways, and hosted zones. See
+uses two records in the existing `chrispsheehan.com` hosted zone while avoiding
+EKS, load balancers, NAT gateways, and hosted-zone creation. See
 [infra/README.md](infra/README.md) for its architecture, prerequisites, cost,
 secret flow, and Terragrunt commands.
 
@@ -80,21 +81,19 @@ not committed as a GitOps-managed Kubernetes `Secret`. `just start` and
 Backstage rollout when `AUTH_GITHUB_CLIENT_ID` and
 `AUTH_GITHUB_CLIENT_SECRET` are set.
 
-For local GitHub sign-in, configure a GitHub OAuth app with:
+One GitHub OAuth app can serve both the local and EC2 deployments. GitHub OAuth
+apps accept up to 10 authorization callback URLs, so register these four:
 
-- Homepage URL: `http://localhost:3000`
-- Authorization callback URL: `http://localhost:7007/api/auth/github/handler/frame`
- 
-Use the same origin for both values in this repo, since Backstage is served from
-the in-cluster app backend on `http://localhost:7007`, not from a separate
-frontend dev server.
+- `http://localhost:7007/api/auth/github/handler/frame`
+- `http://localhost:8080/api/dex/callback`
+- `http://backstage.chrispsheehan.com/api/auth/github/handler/frame`
+- `https://argocd.chrispsheehan.com:8443/api/dex/callback`
+
+Use `http://backstage.chrispsheehan.com` as the OAuth app's Homepage URL. The
+local Backstage callback still uses port 7007 because local Backstage is served
+from the in-cluster app backend rather than a separate frontend dev server.
 
 Then set `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` in `.env`.
-
-The same GitHub OAuth app can also be reused for local Argo CD SSO. If you do
-that, add this second callback URL in the GitHub app as well:
-
-- `http://localhost:8080/api/dex/callback`
 
 GitHub UI steps:
 
@@ -102,10 +101,11 @@ GitHub UI steps:
 2. Open `Developer settings`.
 3. Open `OAuth Apps`.
 4. Click `New OAuth App` or `Register a new application`.
-5. Set `Application name` to something like `backstage-sandbox-local`.
-6. Set `Homepage URL` to `http://localhost:7007`.
-7. Set `Authorization callback URL` to `http://localhost:7007/api/auth/github/handler/frame`.
-8. If you also want GitHub sign-in for the local Argo CD UI on `http://localhost:8080`, add an additional callback URL: `http://localhost:8080/api/dex/callback`.
+5. Set `Application name` to something like `backstage-sandbox`.
+6. Set `Homepage URL` to `http://backstage.chrispsheehan.com`.
+7. Add all four authorization callback URLs listed above.
+8. Confirm each callback is saved before deploying EC2, where Argo CD password
+   login is disabled.
 9. Click `Register application`.
 10. Copy the generated client ID into `AUTH_GITHUB_CLIENT_ID`.
 11. Click `Generate a new client secret` and copy it into `AUTH_GITHUB_CLIENT_SECRET`.

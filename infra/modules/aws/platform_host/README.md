@@ -4,15 +4,17 @@ Creates the single-node dev platform host, its Elastic IP, and least-cost
 bootstrap surface. It consumes the security group and instance profile owned
 by the separate `security` and `platform_role` stacks.
 
-The module discovers the existing VPC by exact `Name` tag and public subnets by
-`*public*` `Name` tag. EC2 user data installs Docker, kubectl, Helm, and k3d,
+The module discovers the existing VPC by exact `Name` tag, public subnets by
+`*public*` `Name` tag, and the existing public `chrispsheehan.com` Route 53
+hosted zone by name. It creates Backstage and Argo CD A records targeting the
+module-owned Elastic IP. EC2 user data installs Docker, kubectl, Helm, and k3d,
 then creates a k3d cluster with Argo CD, Crossplane core, and the AWS providers.
-On EC2, k3d maps host port 8443 to Argo CD's HTTPS NodePort while preserving
-Argo CD's native TLS mode.
+On EC2, k3d maps host port 80 to the Backstage NodePort and port 8443 to Argo
+CD's HTTPS NodePort while preserving Argo CD's native TLS mode.
 Before Argo CD deploys Backstage from the EC2 overlay, user data reads its
 backend secret and GitHub OAuth values from SSM Parameter Store and creates the
 runtime and ECR pull Secrets in Kubernetes. It also configures Argo CD's Dex
-GitHub connector with those OAuth values and the external Elastic IP URL, and
+GitHub connector with those OAuth values and its stable Route 53 URL, and
 disables Argo CD's built-in admin account on EC2. This module owns those
 SecureStrings beneath a randomized SSM path. The random path
 changes after a complete destroy so Parameter Store's delayed deletion does not
@@ -35,4 +37,5 @@ lab readiness signal.
 
 Changing the copied files or user data replaces the disposable host. Any
 cluster and runtime data created manually on it are therefore ephemeral. The
-bootstrap bucket and its object are removed with this module.
+bootstrap bucket, its object, and the two DNS records are removed with this
+module. The existing hosted zone is only read and is never owned or destroyed.

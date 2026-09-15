@@ -11,3 +11,5 @@ images:
 
 patches:
   - path: serviceaccount-image-pull-secret.yaml
+  - path: service-nodeport.yaml
+  - path: external-url.yaml

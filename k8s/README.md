@@ -18,8 +18,9 @@ This repo uses a deliberately split ownership model:
   by that kustomization, rather than embedded inline in a manifest.
 - `overlays/local/`: local aggregators used by the local Argo CD workflow.
 - `overlays/ec2/`: EC2-specific aggregators, including the versioned ECR image
-  selection and ECR image-pull configuration for Backstage. The EC2 bootstrap
-  installs a Backstage Argo CD `Application` that targets this overlay.
+  selection, ECR image-pull configuration, external Backstage URL, and
+  Backstage NodePort. The EC2 bootstrap installs a Backstage Argo CD
+  `Application` that targets this overlay.
 
 ## Bootstrap Order
 
@@ -93,20 +94,21 @@ just start
 Argo CD is there for GitOps inspection, and Backstage is exposed locally via a
 service port-forward on `http://localhost:7007`.
 
-The optional EC2 bootstrap instead maps Elastic IP port 8443 through k3d to
-`Service/argocd-server` NodePort 30443. Open the Terraform `argocd_url` output
-and accept the warning for Argo CD's self-signed certificate. Argo CD continues
-to terminate TLS itself; `server.insecure` is not enabled. Both the security
-group rule and the existing HTTP port 80 rule are restricted to the Terraform
+The optional EC2 bootstrap maps Elastic IP port 80 through k3d to Backstage
+NodePort 30070 and port 8443 to `Service/argocd-server` NodePort 30443. Route 53
+maps `backstage.chrispsheehan.com` and `argocd.chrispsheehan.com` to that same
+Elastic IP; the ports select the destination service. Argo CD continues to
+terminate TLS itself, so its certificate warning remains and `server.insecure`
+is not enabled. Both security-group rules are restricted to the Terraform
 caller's current public IPv4 address.
 
 EC2 user data also renders the EC2-specific Dex configuration from the GitHub
 OAuth values held in SSM Parameter Store. Its callback URL is
-`https://<elastic-ip>:8443/api/dex/callback`. The EC2 RBAC override gives every
-authenticated GitHub user the admin role, matching the disposable local lab,
-and the EC2-specific `argocd-cm` disables the built-in admin account. GitHub is
-therefore the only interactive login path on EC2. Local Argo CD retains its
-built-in admin account.
+`https://argocd.chrispsheehan.com:8443/api/dex/callback`. The EC2 RBAC override
+gives every authenticated GitHub user the admin role, matching the disposable
+local lab, and the EC2-specific `argocd-cm` disables the built-in admin account.
+GitHub is therefore the only interactive login path on EC2. Local Argo CD
+retains its built-in admin account.
 
 ## Local Auth
 

@@ -1,11 +1,11 @@
 app:
-  baseUrl: http://localhost:7007
+  baseUrl: ${APP_BASE_URL}
 
 backend:
-  baseUrl: http://localhost:7007
+  baseUrl: ${APP_BASE_URL}
   listen: ':7007'
   cors:
-    origin: http://localhost:7007
+    origin: ${APP_BASE_URL}
     methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
     credentials: true
   database:

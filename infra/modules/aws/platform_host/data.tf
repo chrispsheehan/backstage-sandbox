@@ -5,6 +5,11 @@ data "aws_vpc" "this" {
   }
 }
 
+data "aws_route53_zone" "public" {
+  name         = "${local.hosted_zone_name}."
+  private_zone = false
+}
+
 data "aws_subnets" "public" {
   filter {
     name   = "vpc-id"

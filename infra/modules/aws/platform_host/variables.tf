@@ -30,6 +30,11 @@ variable "vpc_name" {
   type = string
 }
 
+variable "hosted_zone_name" {
+  type        = string
+  description = "Existing public Route 53 hosted zone used for platform URLs."
+}
+
 variable "instance_type" {
   type    = string
   default = "t4g.medium"

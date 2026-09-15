@@ -15,6 +15,7 @@ The `just deploy` deployment creates:
 - one `t4g.medium` Amazon Linux 2023 EC2 workstation
 - one encrypted 30 GiB gp3 root volume
 - an Elastic IP
+- two A records in the existing public `chrispsheehan.com` Route 53 hosted zone
 - a separately managed security group exposing HTTP port 80 and Argo CD HTTPS
   port 8443 only to the Terraform caller's current public IPv4 address, with
   administration through SSM
@@ -30,12 +31,13 @@ the AWS SDK's ambient credential chain. Before installing the Argo CD
 applications, it reads the Backstage backend secret and GitHub OAuth
 credentials from SSM Parameter Store and creates runtime-only Kubernetes
 Secrets for those values and ECR image pulls. The same OAuth values configure
-Argo CD's Dex connector with the Elastic IP URL. It then applies the EC2
+Argo CD's Dex connector with its stable Route 53 URL. It then applies the EC2
 Backstage `Application` and the repo-owned
 `ApplicationSet`, which continuously discovers committed `apps/*/argocd`
 definitions on `main` and polls Git once per minute. The EC2 k3d cluster maps
-host port 8443 to Argo CD's native HTTPS service through a NodePort. It does not
-configure External Secrets Operator or an ingress controller.
+host port 80 to Backstage and port 8443 to Argo CD through separate NodePorts.
+It does not configure External Secrets Operator, an ingress controller, or a
+reverse proxy.
 
 Terraform also packages the current contents of `config/`, `k8s/`,
 `scripts/lab/`, `crossplane/providers/`, and
@@ -50,8 +52,9 @@ snapshot stays deterministic.
 The bucket has `force_destroy = true`, so destroying `platform_host` removes
 the ZIP and bucket together.
 
-There is no EKS cluster, load balancer, NAT gateway, hosted zone, TLS
-certificate, or production environment.
+There is no EKS cluster, load balancer, NAT gateway, hosted-zone creation, TLS
+certificate for Backstage, or production environment. The existing hosted zone
+is discovered rather than managed.
 
 ## Existing Network Prerequisite
 
@@ -60,6 +63,7 @@ security and platform-host modules use data sources to find:
 
 - exactly one VPC whose `Name` tag is `vpc`
 - at least one subnet in that VPC whose `Name` tag contains `public`
+- the public Route 53 hosted zone named `chrispsheehan.com`
 
 The selected public subnet must route `0.0.0.0/0` through an internet gateway.
 Change `vpc_name` in `live/global_vars.hcl` if your existing VPC uses another
@@ -82,7 +86,7 @@ state bucket must already exist. Destroying the live stacks does not remove it.
 
 - Terraform 1.11 or newer, Terragrunt, AWS CLI, and `just`
 - local AWS credentials authorized to manage EC2, ECR, IAM, SSM and the state
-  bucket
+  bucket, and to read the hosted zone and manage its two A records
 - the Terragrunt state bucket described above already created
 - `AWS_REGION=eu-west-2`, unless the default is suitable
 - repo-root `.env` values for `AUTH_GITHUB_CLIENT_ID` and
@@ -169,23 +173,24 @@ just bootstrap-logs
 just shell
 ```
 
-The `platform_host` output includes `backstage_url` for the reserved Backstage
-port 80 endpoint and `argocd_url` for Argo CD on HTTPS port 8443. Argo CD uses
-its generated self-signed certificate, so the browser displays a certificate
-warning when opening the Elastic IP URL. This path keeps Argo CD's TLS server
-enabled and does not set `server.insecure`.
+The `platform_host` output includes `http://backstage.chrispsheehan.com` and
+`https://argocd.chrispsheehan.com:8443`. Both Route 53 A records target the
+Elastic IP. Backstage uses plain HTTP in this disposable lab. Argo CD uses its
+generated self-signed certificate, so the browser still displays a certificate
+warning. Argo CD's TLS server remains enabled and does not set
+`server.insecure`.
 
-The Argo CD login page offers **Log in via GitHub** after bootstrap. Once the
-first deploy prints `public_ip`, add this exact authorization callback URL to
-the GitHub OAuth app used by `.env`:
+The Argo CD login page offers **Log in via GitHub** after bootstrap. Add this
+authorization callback URL to the GitHub OAuth app used by `.env` before
+deploying:
 
 ```text
-https://<elastic-ip>:8443/api/dex/callback
+https://argocd.chrispsheehan.com:8443/api/dex/callback
 ```
 
-GitHub permits multiple callback URLs on an OAuth app, so this can sit alongside
-the Backstage callback. Adding it after the deploy does not require another
-Terraform apply.
+The same OAuth app can include the EC2 Backstage callback
+`http://backstage.chrispsheehan.com/api/auth/github/handler/frame` and both
+local callbacks. The root README lists the complete app setup.
 
 For this disposable lab, any authenticated GitHub user receives Argo CD admin
 access. Network access remains restricted to the Terraform caller's current
@@ -297,9 +302,9 @@ use exceeds the instance baseline.
 Stopping rather than destroying the instance removes the EC2 compute charge,
 but the 30 GiB disk and public IPv4 continue to cost approximately
 `$0.00881/hour` or `$6.43/month`. `just destroy` removes the host, disk,
-Elastic IP, ECR repository, bootstrap object, and force-destroy bootstrap
-bucket; the shared Terragrunt state bucket remains and incurs only its small
-usage-based S3 charge.
+Elastic IP, the two platform DNS records, ECR repository, bootstrap object, and
+force-destroy bootstrap bucket; the existing hosted zone and shared Terragrunt
+state bucket remain.
 
 Sources: [AWS EC2 On-Demand pricing](https://aws.amazon.com/ec2/pricing/on-demand/),
 [AWS EBS pricing](https://aws.amazon.com/ebs/pricing/),
