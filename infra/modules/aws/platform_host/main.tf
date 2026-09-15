@@ -61,6 +61,33 @@ resource "aws_s3_object" "platform_repo" {
   etag   = data.archive_file.platform_repo.output_md5
 }
 
+resource "random_id" "backstage_parameters" {
+  byte_length = 4
+}
+
+resource "random_password" "backstage_backend_secret" {
+  length  = 64
+  special = false
+}
+
+resource "aws_ssm_parameter" "backstage_backend_secret" {
+  name  = "/${var.base_name}/backstage/${random_id.backstage_parameters.hex}/backend-secret"
+  type  = "SecureString"
+  value = random_password.backstage_backend_secret.result
+}
+
+resource "aws_ssm_parameter" "backstage_github_client_id" {
+  name  = "/${var.base_name}/backstage/${random_id.backstage_parameters.hex}/github-client-id"
+  type  = "SecureString"
+  value = var.backstage_github_client_id
+}
+
+resource "aws_ssm_parameter" "backstage_github_client_secret" {
+  name  = "/${var.base_name}/backstage/${random_id.backstage_parameters.hex}/github-client-secret"
+  type  = "SecureString"
+  value = var.backstage_github_client_secret
+}
+
 resource "aws_instance" "this" {
   ami                         = data.aws_ami.amazon_linux_2023_arm64.id
   instance_type               = var.instance_type
@@ -71,8 +98,15 @@ resource "aws_instance" "this" {
 
   user_data_replace_on_change = true
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {
-    aws_region                  = var.aws_region
+    aws_region = var.aws_region
+    backstage_auth_revision = join(":", [
+      aws_ssm_parameter.backstage_backend_secret.version,
+      aws_ssm_parameter.backstage_github_client_id.version,
+      aws_ssm_parameter.backstage_github_client_secret.version,
+    ])
+    backstage_parameter_prefix  = "/${var.base_name}/backstage/${random_id.backstage_parameters.hex}"
     bootstrap_script_base64gzip = base64gzip(var.bootstrap_script)
+    ecr_repository_url          = var.ecr_repository_url
     git_repository_url          = "https://github.com/${var.github_repo}.git"
     git_revision                = var.git_revision
     platform_repo_content_hash  = data.archive_file.platform_repo.output_sha256
@@ -93,6 +127,9 @@ resource "aws_instance" "this" {
 
   depends_on = [
     aws_s3_object.platform_repo,
+    aws_ssm_parameter.backstage_backend_secret,
+    aws_ssm_parameter.backstage_github_client_id,
+    aws_ssm_parameter.backstage_github_client_secret,
   ]
 }
 

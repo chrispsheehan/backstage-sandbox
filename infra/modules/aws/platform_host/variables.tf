@@ -48,6 +48,23 @@ variable "instance_profile_name" {
   type = string
 }
 
+variable "ecr_repository_url" {
+  type        = string
+  description = "Private ECR repository containing the Backstage runtime image."
+}
+
+variable "backstage_github_client_id" {
+  type        = string
+  description = "GitHub OAuth client ID loaded by Backstage on the EC2 lab."
+  sensitive   = true
+}
+
+variable "backstage_github_client_secret" {
+  type        = string
+  description = "GitHub OAuth client secret loaded by Backstage on the EC2 lab."
+  sensitive   = true
+}
+
 variable "platform_repo_files" {
   type        = map(string)
   description = "Contents of the selected repo directories copied to the host."

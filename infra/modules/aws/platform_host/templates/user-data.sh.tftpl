@@ -6,6 +6,8 @@ exec > >(tee /var/log/platform-bootstrap.log | logger -t platform-bootstrap -s 2
 AWS_REGION="${aws_region}"
 # Replacing the host when copied repo content changes is intentional for this disposable PoC.
 PLATFORM_REPO_CONTENT_HASH="${platform_repo_content_hash}"
+# Replacing it after a Backstage OAuth rotation refreshes the in-cluster Secret.
+BACKSTAGE_AUTH_REVISION="${backstage_auth_revision}"
 
 # Session Manager becoming Online is the signal that the complete lab is ready.
 systemctl stop amazon-ssm-agent
@@ -35,11 +37,13 @@ unzip -q /tmp/platform-repo.zip -d /opt/backstage-sandbox
 chmod 0755 /opt/backstage-sandbox/scripts/lab/*.sh
 chown -R ec2-user:ec2-user /opt/backstage-sandbox
 
-export AWS_REGION PLATFORM_REPO_CONTENT_HASH
+export AWS_REGION PLATFORM_REPO_CONTENT_HASH BACKSTAGE_AUTH_REVISION
 /usr/local/sbin/bootstrap-platform-host
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/bootstrap-cluster.sh
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/install-crossplane-providers.sh ec2
-sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/deploy-generated-applications.sh \
+sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/configure-ec2-backstage-secrets.sh \
+  "$AWS_REGION" "${ecr_repository_url}" "${backstage_parameter_prefix}"
+sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/deploy-ec2-argocd-apps.sh \
   "${git_repository_url}" "${git_revision}"
 systemctl restart amazon-ssm-agent
 trap - EXIT

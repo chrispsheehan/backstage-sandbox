@@ -25,6 +25,21 @@ infra-format:
 
 # Apply all dev stacks, then follow EC2 bootstrap output to completion.
 deploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [[ ! -f "{{ PROJECT_DIR }}/.env" ]]; then
+        echo "Missing {{ PROJECT_DIR }}/.env" >&2
+        exit 1
+    fi
+
+    set -a
+    source "{{ PROJECT_DIR }}/.env"
+    set +a
+
+    : "${AUTH_GITHUB_CLIENT_ID:?AUTH_GITHUB_CLIENT_ID must be set in .env}"
+    : "${AUTH_GITHUB_CLIENT_SECRET:?AUTH_GITHUB_CLIENT_SECRET must be set in .env}"
+
     just tg-all dev apply
     just bootstrap-logs
     just tg dev aws/platform_host output

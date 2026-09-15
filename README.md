@@ -14,8 +14,9 @@ Elastic IP and SSM access. It installs Docker, kubectl, Helm, and k3d; copies
 the repo's `config/`, `k8s/`, and shared `scripts/lab/` trees to the host; then
 creates a k3d cluster with Argo CD and Crossplane core and installs an
 `ApplicationSet` that continuously discovers committed `apps/*/argocd`
-definitions. It deliberately avoids EKS, load balancers, NAT gateways, and
-hosted zones. See
+definitions. It also deploys Backstage from the EC2 Kustomize overlay after
+creating its runtime and ECR pull secrets from SSM and the instance role. It
+deliberately avoids EKS, load balancers, NAT gateways, and hosted zones. See
 [infra/README.md](infra/README.md) for its architecture, prerequisites, cost,
 secret flow, and Terragrunt commands.
 

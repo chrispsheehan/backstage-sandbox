@@ -7,6 +7,15 @@ by the separate `security` and `platform_role` stacks.
 The module discovers the existing VPC by exact `Name` tag and public subnets by
 `*public*` `Name` tag. EC2 user data installs Docker, kubectl, Helm, and k3d,
 then creates a k3d cluster with Argo CD, Crossplane core, and the AWS providers.
+Before Argo CD deploys Backstage from the EC2 overlay, user data reads its
+backend secret and GitHub OAuth values from SSM Parameter Store and creates the
+runtime and ECR pull Secrets in Kubernetes. This module owns those
+SecureStrings beneath a randomized SSM path. The random path changes after a
+complete destroy so Parameter Store's delayed deletion does not block
+immediate recreation; the sensitive values are stored in encrypted Terraform
+state. Terraform generates the 64-character backend secret; only the OAuth
+values come from `.env`.
+
 Terraform creates a private, encrypted bootstrap bucket with `force_destroy =
 true`, stages the repo's `config/`, `crossplane/`, `k8s/`, and shared
 `scripts/lab/` files there as one ZIP, and expands it at

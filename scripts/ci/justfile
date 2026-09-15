@@ -5,6 +5,15 @@ CI_PROJECT_DIR := source_directory() / "../.."
 tg env module op:
     #!/usr/bin/env bash
     set -euo pipefail
+    if [[ -f "{{ CI_PROJECT_DIR }}/.env" ]]; then
+        set -a
+        source "{{ CI_PROJECT_DIR }}/.env"
+        set +a
+    fi
+    if [[ -n "${AUTH_GITHUB_CLIENT_ID:-}" && -n "${AUTH_GITHUB_CLIENT_SECRET:-}" ]]; then
+        export TF_VAR_backstage_github_client_id="${AUTH_GITHUB_CLIENT_ID}"
+        export TF_VAR_backstage_github_client_secret="${AUTH_GITHUB_CLIENT_SECRET}"
+    fi
     if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
         AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
         export AWS_ACCOUNT_ID
@@ -18,6 +27,15 @@ tg env module op:
 tg-all env op:
     #!/usr/bin/env bash
     set -euo pipefail
+    if [[ -f "{{ CI_PROJECT_DIR }}/.env" ]]; then
+        set -a
+        source "{{ CI_PROJECT_DIR }}/.env"
+        set +a
+    fi
+    if [[ -n "${AUTH_GITHUB_CLIENT_ID:-}" && -n "${AUTH_GITHUB_CLIENT_SECRET:-}" ]]; then
+        export TF_VAR_backstage_github_client_id="${AUTH_GITHUB_CLIENT_ID}"
+        export TF_VAR_backstage_github_client_secret="${AUTH_GITHUB_CLIENT_SECRET}"
+    fi
     if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
         AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
         export AWS_ACCOUNT_ID
@@ -95,8 +113,10 @@ push-image version:
     printf '\nPushed Backstage image:\n  %s\n' "${image_uri}"
     printf '%s\n' \
       '' \
-      'To select this version, update the images block in the Kustomization that' \
-      'the Backstage Argo CD Application points to, then commit and push it:' \
+      'To select this version for EC2, update:' \
+      '  k8s/overlays/ec2/backstage/kustomization.yaml' \
+      '' \
+      'Replace its images block with the following, then commit and push it:' \
       '' \
       'images:' \
       '  - name: backstage-lab' \

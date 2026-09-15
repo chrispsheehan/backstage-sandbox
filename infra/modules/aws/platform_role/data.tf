@@ -37,6 +37,14 @@ data "aws_iam_policy_document" "platform" {
   }
 
   statement {
+    sid     = "ReadBackstageRuntimeSecrets"
+    actions = ["ssm:GetParameter"]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:${var.aws_account_id}:parameter/${var.base_name}/backstage/*",
+    ]
+  }
+
+  statement {
     sid = "DiscoverS3Buckets"
     actions = [
       "s3:GetAccountPublicAccessBlock",

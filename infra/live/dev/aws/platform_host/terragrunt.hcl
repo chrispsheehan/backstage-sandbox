@@ -31,12 +31,22 @@ dependency "platform_role" {
   mock_outputs_allowed_terraform_commands = ["validate", "plan"]
 }
 
+dependency "ecr" {
+  config_path = "../ecr"
+
+  mock_outputs = {
+    repository_url = "000000000000.dkr.ecr.eu-west-2.amazonaws.com/backstage-sandbox-dev"
+  }
+  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+}
+
 terraform {
   source = "../../../../modules//aws//platform_host"
 }
 
 inputs = {
   bootstrap_script           = file("${local.repo_root}/scripts/aws/bootstrap-platform-host.sh")
+  ecr_repository_url         = dependency.ecr.outputs.repository_url
   instance_profile_name      = dependency.platform_role.outputs.instance_profile_name
   platform_repo_files        = { for path in local.platform_repo_paths : path => file("${local.repo_root}/${path}") }
   platform_security_group_id = dependency.security.outputs.platform_security_group_id

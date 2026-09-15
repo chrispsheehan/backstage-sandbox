@@ -25,10 +25,14 @@ already supplied by Amazon Linux 2023, runs that script to install kubectl,
 Helm, and k3d, then runs the shared lab bootstrap as `ec2-user`. That creates a
 k3d cluster, installs Argo CD and Crossplane core, installs the Crossplane AWS
 providers, and configures them to use the EC2 instance profile through
-the AWS SDK's ambient credential chain. It also applies the repo-owned Argo CD
+the AWS SDK's ambient credential chain. Before installing the Argo CD
+applications, it reads the Backstage backend secret and GitHub OAuth
+credentials from SSM Parameter Store and creates runtime-only Kubernetes
+Secrets for those values and ECR image pulls. It then applies the EC2 Backstage
+`Application` and the repo-owned
 `ApplicationSet`, which continuously discovers committed `apps/*/argocd`
 definitions on `main` and polls Git once per minute. It does not configure
-External Secrets Operator, Backstage, or ingress.
+External Secrets Operator or ingress.
 
 Terraform also packages the current contents of `config/`, `k8s/`,
 `scripts/lab/`, `crossplane/providers/`, and
@@ -78,9 +82,12 @@ state bucket must already exist. Destroying the live stacks does not remove it.
   bucket
 - the Terragrunt state bucket described above already created
 - `AWS_REGION=eu-west-2`, unless the default is suitable
+- repo-root `.env` values for `AUTH_GITHUB_CLIENT_ID` and
+  `AUTH_GITHUB_CLIENT_SECRET`; the Terragrunt recipes export these values to
+  the Terraform-managed SSM parameters. Terraform generates `BACKEND_SECRET`.
 
-GitHub credentials and the repo-root `.env` are not needed for host bootstrap
-while this repository is public.
+The public Git repository does not need an Argo CD repository credential. The
+OAuth values are for the Backstage runtime rather than repository access.
 
 ## Private GitHub Repository
 
@@ -109,6 +116,19 @@ Apply all dev stacks in dependency order:
 just deploy
 ```
 
+For a new environment, publish the image and commit the printed EC2 overlay
+change before running `just deploy`. A full `just destroy` removes the ECR
+repository and its images, so repeat `just push-image` before recreating the
+host.
+
+The Terragrunt recipes load repo-root `.env` before running. The platform-host
+stack receives the two OAuth values through sensitive `TF_VAR_` environment
+variables, generates a 64-character `BACKEND_SECRET`, and stores all three as
+SSM SecureStrings. Terraform marks the inputs and generated password sensitive,
+so they are redacted from ordinary CLI output, but the values are still present
+in the encrypted remote state. When running Terragrunt directly instead of
+through `just`, export the two OAuth `TF_VAR_` values yourself.
+
 Terragrunt can apply ECR and the security group in parallel, then applies the
 platform host after both dependencies succeed. After the apply completes,
 `just deploy` follows the EC2 user-data console output and returns when
@@ -125,14 +145,14 @@ just push-image "$(git rev-parse HEAD)"
 The required version must be a 7-40 character lowercase Git hash. This command
 first applies only the ECR module, reads its repository URL, builds the image
 for ARM64, pushes it as `<ecr-repository-url>:<version>`, and prints the exact
-Kustomize `images` block to put in the overlay targeted by the Backstage Argo
-CD Application. Committing and pushing that overlay change is the separate
-GitOps step that selects the new image for deployment.
+Kustomize `images` block and its destination file,
+`k8s/overlays/ec2/backstage/kustomization.yaml`. Committing and pushing that
+overlay change is the separate GitOps step that selects the new image for
+deployment.
 
-Publishing does not currently deploy Backstage to EC2: the EC2 bootstrap still
-only installs the generated-app `ApplicationSet`. A Backstage Argo CD
-`Application` and its EC2 Kustomize overlay must exist before the printed image
-selection can affect a workload there.
+After that image selection is committed and pushed, `just deploy` installs an
+Argo CD `Application` that targets the EC2 overlay. User data creates the
+runtime-only Backstage and ECR pull Secrets before Argo CD begins the rollout.
 
 Image publishing requires a running local Docker daemon, Docker Buildx, and
 AWS credentials that can apply the ECR module and push to the repository.
@@ -199,17 +219,27 @@ available:
 ```bash
 kubectl get nodes
 kubectl get pods -A
+kubectl -n argocd get application backstage
+kubectl -n backstage get deployment,pods
 ```
+
+ECR authorization tokens expire after 12 hours. Existing pods continue to use
+their locally cached image, but a later pull can fail after the token stored in
+`Secret/ecr-registry` expires. A newly bootstrapped disposable host refreshes
+the secret automatically. On an existing host, rerun
+`scripts/lab/configure-ec2-backstage-secrets.sh` with the region, repository
+URL, and the `backstage_parameter_prefix` output from the platform-host stack
+before restarting the deployment.
 
 Sessions opened without the lab-specific document still use the default
 `ssm-user`, which does not own that kubeconfig or belong to the `docker` group.
 The shared bootstrap remains safe to rerun manually from the `ec2-user` shell.
 
-The installed `ApplicationSet` reads `apps/*/argocd` from the tracked Git
-revision rather than the EC2 filesystem. Adding or removing a committed app
-definition is therefore reconciled automatically without another
-`kubectl apply`. Apply other tracked YAML manually if you want to extend the
-default lab shape.
+The installed Backstage `Application` and generated-app `ApplicationSet` read
+their desired state from the tracked Git revision rather than the EC2
+filesystem. Updating the committed EC2 Backstage overlay, or adding or
+removing a committed `apps/*/argocd` definition, is therefore reconciled
+automatically without another `kubectl apply`.
 
 Destroy all dev stacks in reverse dependency order when the PoC is idle:
 
@@ -247,10 +277,15 @@ Sources: [AWS EC2 On-Demand pricing](https://aws.amazon.com/ec2/pricing/on-deman
 [AWS VPC public IPv4 pricing](https://aws.amazon.com/vpc/pricing/), and
 [AWS Systems Manager pricing](https://aws.amazon.com/systems-manager/pricing/).
 
-The instance profile can read its ZIP from the dedicated bootstrap bucket, pull
-the Backstage image from the lab ECR repository, and manage S3 buckets ending
-in `-<account-id>-<region>` for generated static sites, in addition to the
-AWS-managed permissions needed for Session Manager. Containers started on the
-host may be able to reach that EC2 metadata identity.
+The instance profile can read its ZIP from the dedicated bootstrap bucket,
+pull the Backstage image from the lab ECR repository, read the three Backstage
+runtime parameters, and manage S3 buckets ending in
+`-<account-id>-<region>` for generated static sites, in addition to the
+AWS-managed permissions needed for Session Manager. The SSM parameters are
+owned by the platform-host stack, so `just destroy` removes them and the next
+`just deploy` recreates them from `.env`. Their names include a Terraform-owned
+random ID, so an earlier parameter still finishing deletion cannot collide
+with the newly created names. Containers started on the host may be able to
+reach that EC2 metadata identity.
 Use workload identity and narrowly scoped workload roles before adding cloud
 controllers or running a persistent or multi-tenant platform.

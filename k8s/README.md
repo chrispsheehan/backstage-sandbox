@@ -16,7 +16,10 @@ This repo uses a deliberately split ownership model:
   The cluster-specific Backstage config is kept as
   `base/backstage/app-config.kubernetes.yaml` and packaged into a `ConfigMap`
   by that kustomization, rather than embedded inline in a manifest.
-- `overlays/local/`: local aggregators that Argo CD will point at when app deployment is wired back in.
+- `overlays/local/`: local aggregators used by the local Argo CD workflow.
+- `overlays/ec2/`: EC2-specific aggregators, including the versioned ECR image
+  selection and ECR image-pull configuration for Backstage. The EC2 bootstrap
+  installs a Backstage Argo CD `Application` that targets this overlay.
 
 ## Bootstrap Order
 
@@ -51,9 +54,10 @@ public; the future private-repository integration points are recorded in the
 The tracked Argo CD application templates are rendered to standard input.
 `scripts/lab/deploy-argocd-apps.sh` applies the Backstage application and the
 generated-app discovery `ApplicationSet` for the local workflow.
-`scripts/lab/deploy-generated-applications.sh` applies only the `ApplicationSet`
-for the EC2 workflow. Both accept a repository URL and revision and neither
-creates generated YAML files in the repo.
+`scripts/lab/deploy-ec2-argocd-apps.sh` applies the EC2 Backstage application
+and delegates generated-app discovery to
+`scripts/lab/deploy-generated-applications.sh`. These scripts accept a
+repository URL and revision and do not create generated YAML files in the repo.
 
 On some local `k3d` setups, the generated kubeconfig server for
 `k3d-platform-lab` can be `https://0.0.0.0:<port>`. The bootstrap flow

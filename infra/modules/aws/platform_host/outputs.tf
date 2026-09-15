@@ -21,3 +21,8 @@ output "backstage_url" {
 output "argocd_url" {
   value = "http://${aws_eip.this.public_ip}:8080"
 }
+
+output "backstage_parameter_prefix" {
+  description = "Randomized SSM path containing the Backstage runtime parameters."
+  value       = "/${var.base_name}/backstage/${random_id.backstage_parameters.hex}"
+}
