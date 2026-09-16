@@ -3,6 +3,10 @@ set -euo pipefail
 
 exec > >(tee /var/log/platform-bootstrap.log | logger -t platform-bootstrap -s 2>/dev/console) 2>&1
 
+# Keep informational CNI bridge messages in the kernel log without flooding
+# the EC2 serial console followed by `just bootstrap-logs`.
+dmesg --console-level warn
+
 AWS_REGION="${aws_region}"
 # Replacing the host when copied repo content changes is intentional for this disposable PoC.
 PLATFORM_REPO_CONTENT_HASH="${platform_repo_content_hash}"
