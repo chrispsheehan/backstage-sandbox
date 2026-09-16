@@ -225,6 +225,11 @@ console output can arrive in bursts rather than immediately. This path works
 while the SSM agent is deliberately offline during bootstrap; `just shell`
 becomes available only after bootstrap completes or fails.
 
+User data limits kernel serial-console output to warnings and errors. Routine
+CNI bridge transitions such as `veth` interfaces entering blocking, disabled,
+or forwarding state remain available through `dmesg` and `journalctl`, but do
+not obscure the tagged `platform-bootstrap` output followed by this recipe.
+
 If the Backstage rollout fails, bootstrap writes a bounded diagnostic bundle to
 the same console output before exiting. It includes the Argo CD application,
 Backstage workloads and events, Backstage and Postgres deployment descriptions,
@@ -299,13 +304,15 @@ removing a committed `apps/*/argocd` definition, is therefore reconciled
 automatically without another `kubectl apply`.
 
 Destroy the disposable host, role, and security group while retaining ECR and
-its pushed images:
+its pushed images. The recipe uses automatic approval and does not prompt for
+confirmation:
 
 ```bash
 just destroy
 ```
 
-Remove the complete dev environment, including ECR and all of its images:
+Remove the complete dev environment, including ECR and all of its images. This
+recipe is also non-interactive:
 
 ```bash
 just destroy-all

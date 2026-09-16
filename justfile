@@ -50,13 +50,13 @@ deploy:
 
 # Destroy the disposable dev runtime while retaining ECR and its images.
 destroy:
-    just tg dev aws/platform_host destroy
-    just tg dev aws/platform_role destroy
-    just tg dev aws/security destroy
+    just tg dev aws/platform_host "destroy -auto-approve"
+    just tg dev aws/platform_role "destroy -auto-approve"
+    just tg dev aws/security "destroy -auto-approve"
 
 # Destroy the complete dev environment, including ECR and its images.
 destroy-all:
-    just tg-all dev destroy
+    just tg-all dev "destroy -auto-approve"
 
 # Open a Session Manager shell on the dev platform workstation.
 shell:
