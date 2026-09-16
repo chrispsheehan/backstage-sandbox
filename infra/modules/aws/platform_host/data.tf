@@ -7,10 +7,6 @@ data "aws_vpc" "this" {
 
 data "aws_partition" "current" {}
 
-data "aws_iam_instance_profile" "platform" {
-  name = var.instance_profile_name
-}
-
 data "aws_route53_zone" "public" {
   name         = "${local.hosted_zone_name}."
   private_zone = false

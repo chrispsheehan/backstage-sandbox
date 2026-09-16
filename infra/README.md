@@ -20,6 +20,9 @@ The `just deploy` deployment creates:
 - a separately managed security group exposing Caddy ports 80 and 443 only to
   the Terraform caller's current public IPv4 address, with administration
   through SSM
+- one encrypted, Single-AZ `db.t4g.micro` RDS PostgreSQL instance with 20 GiB
+  gp3 storage, no public address, and port 5432 allowed only from the platform
+  EC2 security group
 - a private, encrypted bootstrap S3 bucket with force-destroy enabled
 
 Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
@@ -31,10 +34,10 @@ not depend on Backstage becoming healthy. The shared lab bootstrap then creates
 a k3d cluster, installs Argo CD and Crossplane core, installs the Crossplane AWS
 providers, and configures them to use the EC2 instance profile through the AWS
 SDK's ambient credential chain. Before installing the Argo CD
-applications, it reads the Backstage backend secret and GitHub OAuth
-credentials from SSM Parameter Store and creates runtime-only Kubernetes
-Secrets for those values and ECR image pulls. The same OAuth values configure
-Argo CD's Dex connector with its stable Route 53 URL. It then applies the EC2
+applications, it reads the Backstage backend secret, GitHub OAuth credentials,
+and RDS connection settings from SSM Parameter Store and creates runtime-only
+Kubernetes Secrets for those values and ECR image pulls. The same OAuth values
+configure Argo CD's Dex connector with its stable Route 53 URL. It then applies the EC2
 Backstage `Application` and the repo-owned
 `ApplicationSet`, which continuously discovers committed `apps/*/argocd`
 definitions on `main` and polls Git once per minute. Caddy owns host ports 80
@@ -57,8 +60,11 @@ The bucket has `force_destroy = true`, so destroying `platform_host` removes
 the ZIP and bucket together.
 
 There is no EKS cluster, load balancer, NAT gateway, hosted-zone creation, or
-production environment. The existing hosted zone is discovered rather than
-managed. Caddy obtains and renews its public certificates through ACME without
+production environment. RDS uses the existing public subnets only because this
+lab has no private subnet tier; `publicly_accessible = false` means it receives
+no public address, and its security group has no CIDR-based ingress. The
+existing hosted zone is discovered rather than managed. Caddy obtains and
+renews its public certificates through ACME without
 requiring an account email. Its Route 53 provider waits for each DNS change to
 reach `INSYNC` before ACME validation, avoiding secondary-validator races while
 the temporary TXT record propagates.
@@ -66,16 +72,29 @@ the temporary TXT record propagates.
 ## Existing Network Prerequisite
 
 Terraform does not create networking. As in the reference repository, the
-security and platform-host modules use data sources to find:
+security, database, and platform-host modules use data sources to find:
 
 - exactly one VPC whose `Name` tag is `vpc`
-- at least one subnet in that VPC whose `Name` tag contains `public`
+- at least two subnets in distinct availability zones in that VPC whose `Name`
+  tag contains `public`
 - the public Route 53 hosted zone named `chrispsheehan.com`
 
-The selected public subnet must route `0.0.0.0/0` through an internet gateway.
-Change `vpc_name` in `live/global_vars.hcl` if your existing VPC uses another
-name. The security module owns the ingress group, while the platform host
-selects the lexically first matching subnet so plans are deterministic.
+Before deploying, verify the existing network meets this contract:
+
+| Existing resource | Required configuration | Example |
+| --- | --- | --- |
+| VPC | Exactly one VPC has an exact, case-sensitive `Name` tag matching `vpc_name`; VPC DNS resolution is enabled | `Name = vpc` |
+| EC2 subnet | Belongs to that VPC, has a case-sensitive `Name` tag containing `public`, and routes `0.0.0.0/0` to an attached internet gateway | `Name = public-eu-west-2a` |
+| Additional RDS subnet | Belongs to the same VPC, has a `Name` tag containing `public`, and is in a different availability zone | `Name = public-eu-west-2b` |
+| Availability zones | The matching subnet set covers at least two distinct AZs; RDS requires this even though the database is Single-AZ | `eu-west-2a`, `eu-west-2b` |
+
+Change `vpc_name` in `live/global_vars.hcl` if the VPC uses another exact
+`Name` value. The platform host selects the lexically first matching subnet,
+so make sure that subnet has the internet-gateway route required for its
+Elastic IP, package installation, and outbound access. The database subnet
+group spans every matching subnet. Those subnets do not make RDS public:
+`publicly_accessible = false` gives it private connectivity only, and its
+security group permits PostgreSQL solely from the platform EC2 security group.
 
 ## State
 
@@ -92,7 +111,7 @@ state bucket must already exist. Destroying the live stacks does not remove it.
 ## Prerequisites
 
 - Terraform 1.11 or newer, Terragrunt, AWS CLI, and `just`
-- local AWS credentials authorized to manage EC2, ECR, IAM, SSM and the state
+- local AWS credentials authorized to manage EC2, ECR, RDS, IAM, SSM and the state
   bucket, and to read the hosted zone and manage its two A records
 - the Terragrunt state bucket described above already created
 - `AWS_REGION=eu-west-2`, unless the default is suitable
@@ -140,13 +159,17 @@ teardown.
 The Terragrunt recipes load repo-root `.env` before running. The platform-host
 stack receives the two OAuth values through sensitive `TF_VAR_` environment
 variables, generates a 64-character `BACKEND_SECRET`, and stores all three as
-SSM SecureStrings. Terraform marks the inputs and generated password sensitive,
-so they are redacted from ordinary CLI output, but the values are still present
-in the encrypted remote state. When running Terragrunt directly instead of
+SSM SecureStrings. The database stack separately generates its PostgreSQL
+password and owns the RDS host, port, database, user, and password SecureStrings
+beneath its own randomized SSM path. It passes only that path and an opaque
+revision to the platform-host stack. The password remains in the database
+stack's encrypted remote state, but not in platform-host state. The database
+values do not come from `.env`. When running Terragrunt directly instead of
 through `just`, export the two OAuth `TF_VAR_` values yourself.
 
-Terragrunt can apply ECR and the security group in parallel, then applies the
-platform host after both dependencies succeed. After the apply completes,
+Terragrunt can apply ECR and the security group in parallel, creates RDS after
+the security group, then applies the platform host after all of its
+dependencies succeed. After the apply completes,
 `just deploy` follows the EC2 user-data console output and returns when
 bootstrap reports success or failure. After a successful bootstrap it prints
 the `platform_host` outputs, including the Backstage and Argo CD URLs. Destroy
@@ -169,7 +192,8 @@ deployment.
 
 After that image selection is committed and pushed, `just deploy` installs an
 Argo CD `Application` that targets the EC2 overlay. User data creates the
-runtime-only Backstage and ECR pull Secrets before Argo CD begins the rollout.
+runtime-only Backstage, RDS, and ECR pull Secrets before Argo CD begins the
+rollout. The EC2 overlay does not deploy the local Postgres pod.
 
 Image publishing requires a running local Docker daemon, Docker Buildx, and
 AWS credentials that can apply the ECR module and push to the repository.
@@ -232,7 +256,7 @@ not obscure the tagged `platform-bootstrap` output followed by this recipe.
 
 If the Backstage rollout fails, bootstrap writes a bounded diagnostic bundle to
 the same console output before exiting. It includes the Argo CD application,
-Backstage workloads and events, Backstage and Postgres deployment descriptions,
+Backstage workloads and events, the Backstage deployment description,
 and the latest 200 lines of current and previous logs from every pod in the
 `backstage` namespace. The rollout still returns a failure, and the SSM agent is
 then restored for interactive follow-up.
@@ -290,8 +314,9 @@ their locally cached image, but a later pull can fail after the token stored in
 `Secret/ecr-registry` expires. A newly bootstrapped disposable host refreshes
 the secret automatically. On an existing host, rerun
 `scripts/lab/configure-ec2-backstage-secrets.sh` with the region, repository
-URL, and the `backstage_parameter_prefix` output from the platform-host stack
-before restarting the deployment.
+URL, the `backstage_parameter_prefix` output from the platform-host stack, and
+the `parameter_prefix` output from the database stack before restarting the
+deployment.
 
 Sessions opened without the lab-specific document still use the default
 `ssm-user`, which does not own that kubeconfig or belong to the `docker` group.
@@ -303,8 +328,10 @@ filesystem. Updating the committed EC2 Backstage overlay, or adding or
 removing a committed `apps/*/argocd` definition, is therefore reconciled
 automatically without another `kubectl apply`.
 
-Destroy the disposable host, role, and security group while retaining ECR and
-its pushed images. The recipe runs the environment-wide Terragrunt destroy in
+Destroy the disposable host, RDS database, role, and security groups while
+retaining ECR and its pushed images. Database deletion skips the final snapshot
+and deletes automated backups, so all Backstage data is permanently lost. The
+recipe runs the environment-wide Terragrunt destroy in
 reverse dependency order with `--queue-exclude-dir=aws/ecr`, rather than
 maintaining a list of modules to destroy. It uses non-interactive mode and
 automatic approval, so it does not prompt for confirmation:
@@ -323,44 +350,49 @@ just destroy-all
 
 ## Cost And Security Boundaries
 
-Estimated `eu-west-2` cost, checked 9 September 2026:
+Estimated `eu-west-2` cost, checked 16 September 2026:
 
 | Resource | Assumption | Hourly | Monthly (730 hours) |
 | --- | --- | ---: | ---: |
 | EC2 | One Linux `t4g.medium`, on demand | `$0.03760` | `$27.45` |
 | EBS | 30 GiB gp3 at `$0.0928/GiB-month` | `$0.00381` | `$2.78` |
 | Public IPv4 | One Elastic IP | `$0.00500` | `$3.65` |
+| RDS compute | One PostgreSQL `db.t4g.micro`, Single-AZ, on demand | `$0.01800` | `$13.14` |
+| RDS storage | 20 GiB gp3 at `$0.133/GiB-month` | `$0.00364` | `$2.66` |
 | Session Manager | Standard EC2 managed node | `$0.00000` | `$0.00` |
 | ECR and S3 | Empty ECR plus the small bootstrap ZIP and state files | Usage based | `<$0.01` |
-| **Estimated baseline** | Host running continuously | **`$0.04641`** | **`$33.88`** |
+| **Estimated baseline** | Host and database running continuously | **`$0.06805`** | **`$49.68`** |
 
-That baseline is about `$1.11/day`. It excludes outbound data transfer,
+That baseline is about `$1.63/day`. It excludes outbound data transfer,
 requests beyond this small bootstrap, stored container images, resources later
 created through Crossplane, and T4g surplus CPU-credit charges if sustained CPU
 use exceeds the instance baseline.
 
-Stopping rather than destroying the instance removes the EC2 compute charge,
-but the 30 GiB disk and public IPv4 continue to cost approximately
-`$0.00881/hour` or `$6.43/month`. `just destroy` removes the host, disk,
+Stopping rather than destroying only the EC2 instance removes its compute
+charge, but RDS, the 30 GiB disk, and public IPv4 continue to accrue charges.
+`just destroy` removes the host, disk,
 Elastic IP, the two platform DNS records, bootstrap object, and force-destroy
-bootstrap bucket, but retains ECR and its images. `just destroy-all` also
-removes ECR. The existing hosted zone and shared Terragrunt state bucket remain
-in both cases.
+bootstrap bucket, and permanently deletes RDS without a final snapshot; it
+retains ECR and its images. `just destroy-all` also removes ECR. The existing
+hosted zone and shared Terragrunt state bucket remain in both cases.
 
 Sources: [AWS EC2 On-Demand pricing](https://aws.amazon.com/ec2/pricing/on-demand/),
 [AWS EBS pricing](https://aws.amazon.com/ebs/pricing/),
+[AWS RDS pricing](https://aws.amazon.com/rds/postgresql/pricing/),
 [AWS VPC public IPv4 pricing](https://aws.amazon.com/vpc/pricing/), and
 [AWS Systems Manager pricing](https://aws.amazon.com/systems-manager/pricing/).
 
 The instance profile can read its ZIP from the dedicated bootstrap bucket,
-pull the Backstage image from the lab ECR repository, read the three Backstage
-runtime parameters, and manage S3 buckets ending in
+pull the Backstage image from the lab ECR repository, read the Backstage and
+database runtime parameters, and manage S3 buckets ending in
 `-<account-id>-<region>` for generated static sites, in addition to the
-AWS-managed permissions needed for Session Manager. The SSM parameters are
-owned by the platform-host stack, so `just destroy` removes them and the next
-`just deploy` recreates them from `.env`. Their names include a Terraform-owned
-random ID, so an earlier parameter still finishing deletion cannot collide
-with the newly created names. Containers started on the host may be able to
-reach that EC2 metadata identity.
+AWS-managed permissions needed for Session Manager. The Backstage parameters
+are owned by the platform-host stack and the database parameters by the
+database stack, so `just destroy` removes both sets and the next `just deploy`
+recreates them. The two GitHub OAuth values come from `.env`; the backend and
+database values do not. Both parameter paths include a Terraform-owned random
+ID, so an earlier parameter still finishing deletion cannot collide with the
+newly created names. Containers started on the host may be able to reach that
+EC2 metadata identity.
 Use workload identity and narrowly scoped workload roles before adding cloud
 controllers or running a persistent or multi-tenant platform.

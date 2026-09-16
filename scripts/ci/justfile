@@ -41,14 +41,17 @@ tg-all env op exclude_dir="":
         AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
         export AWS_ACCOUNT_ID
     fi
-    exclude_args=()
     if [[ -n "{{ exclude_dir }}" ]]; then
-        exclude_args+=(--queue-exclude-dir="{{ exclude_dir }}")
+        terragrunt \
+          --non-interactive \
+          --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}" \
+          run --all --queue-exclude-dir="{{ exclude_dir }}" -- {{ op }}
+    else
+        terragrunt \
+          --non-interactive \
+          --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}" \
+          run --all -- {{ op }}
     fi
-    terragrunt \
-      --non-interactive \
-      --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}" \
-      run --all "${exclude_args[@]}" -- {{ op }}
 
 # Root `just push-image` delegates to this CI workflow implementation.
 _push-image version:

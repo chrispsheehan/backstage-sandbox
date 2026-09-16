@@ -37,10 +37,11 @@ data "aws_iam_policy_document" "platform" {
   }
 
   statement {
-    sid     = "ReadBackstageRuntimeSecrets"
+    sid     = "ReadPlatformRuntimeSecrets"
     actions = ["ssm:GetParameter"]
     resources = [
       "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:${var.aws_account_id}:parameter/${var.base_name}/backstage/*",
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:${var.aws_account_id}:parameter/${var.base_name}/database/*",
     ]
   }
 

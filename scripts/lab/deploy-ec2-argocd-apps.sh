@@ -34,10 +34,6 @@ print_backstage_diagnostics() {
   echo "Backstage deployment:"
   kubectl --request-timeout=15s -n backstage describe deployment backstage || true
 
-  echo
-  echo "Postgres deployment:"
-  kubectl --request-timeout=15s -n backstage describe deployment postgres || true
-
   pods="$(kubectl --request-timeout=15s -n backstage get pods -o name 2>/dev/null)" || pods=""
   if [[ -z "${pods}" ]]; then
     echo

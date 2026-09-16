@@ -27,6 +27,7 @@ dependency "platform_role" {
 
   mock_outputs = {
     instance_profile_name = "backstage-sandbox-dev-ec2"
+    role_name             = "backstage-sandbox-dev-ec2"
   }
   mock_outputs_allowed_terraform_commands = ["validate", "plan", "destroy"]
 }
@@ -40,15 +41,28 @@ dependency "ecr" {
   mock_outputs_allowed_terraform_commands = ["validate", "plan", "destroy"]
 }
 
+dependency "database" {
+  config_path = "../database"
+
+  mock_outputs = {
+    parameter_prefix   = "/backstage-sandbox-dev/database/00000000"
+    parameter_revision = "1:1:1:1:1"
+  }
+  mock_outputs_allowed_terraform_commands = ["validate", "plan", "destroy"]
+}
+
 terraform {
   source = "../../../../modules//aws//platform_host"
 }
 
 inputs = {
-  bootstrap_script           = file("${local.repo_root}/scripts/aws/bootstrap-platform-host.sh")
-  ecr_repository_url         = dependency.ecr.outputs.repository_url
-  hosted_zone_name           = "chrispsheehan.com"
-  instance_profile_name      = dependency.platform_role.outputs.instance_profile_name
-  platform_repo_files        = { for path in local.platform_repo_paths : path => file("${local.repo_root}/${path}") }
-  platform_security_group_id = dependency.security.outputs.platform_security_group_id
+  bootstrap_script            = file("${local.repo_root}/scripts/aws/bootstrap-platform-host.sh")
+  ecr_repository_url          = dependency.ecr.outputs.repository_url
+  hosted_zone_name            = "chrispsheehan.com"
+  instance_profile_name       = dependency.platform_role.outputs.instance_profile_name
+  instance_role_name          = dependency.platform_role.outputs.role_name
+  platform_repo_files         = { for path in local.platform_repo_paths : path => file("${local.repo_root}/${path}") }
+  platform_security_group_id  = dependency.security.outputs.platform_security_group_id
+  database_parameter_prefix   = dependency.database.outputs.parameter_prefix
+  database_parameter_revision = dependency.database.outputs.parameter_revision
 }

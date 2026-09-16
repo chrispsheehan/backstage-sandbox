@@ -10,8 +10,9 @@ dmesg --console-level warn
 AWS_REGION="${aws_region}"
 # Replacing the host when copied repo content changes is intentional for this disposable PoC.
 PLATFORM_REPO_CONTENT_HASH="${platform_repo_content_hash}"
-# Replacing it after a Backstage OAuth rotation refreshes the in-cluster Secret.
-BACKSTAGE_AUTH_REVISION="${backstage_auth_revision}"
+# Replacing it after a Backstage secret or database setting changes refreshes
+# the runtime-only in-cluster Secrets.
+BACKSTAGE_RUNTIME_REVISION="${backstage_runtime_revision}"
 
 # Session Manager becoming Online is the signal that the complete lab is ready.
 systemctl stop amazon-ssm-agent
@@ -41,7 +42,7 @@ unzip -q /tmp/platform-repo.zip -d /opt/backstage-sandbox
 chmod 0755 /opt/backstage-sandbox/scripts/lab/*.sh
 chown -R ec2-user:ec2-user /opt/backstage-sandbox
 
-export AWS_REGION PLATFORM_REPO_CONTENT_HASH BACKSTAGE_AUTH_REVISION
+export AWS_REGION PLATFORM_REPO_CONTENT_HASH BACKSTAGE_RUNTIME_REVISION
 /usr/local/sbin/bootstrap-platform-host
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/install-ec2-caddy.sh \
   "$AWS_REGION" "${route53_hosted_zone_id}" \
@@ -53,7 +54,7 @@ sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/configure-ec2-argocd-github
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/install-crossplane-providers.sh ec2
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/configure-ec2-backstage-secrets.sh \
   "$AWS_REGION" "${ecr_repository_url}" "${backstage_parameter_prefix}" \
-  "${backstage_url}"
+  "${database_parameter_prefix}" "${backstage_url}"
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/deploy-ec2-argocd-apps.sh \
   "${git_repository_url}" "${git_revision}"
 sudo -iu ec2-user /opt/backstage-sandbox/scripts/lab/verify-ec2-caddy.sh \

@@ -12,15 +12,18 @@ This repo uses a deliberately split ownership model:
 - `bootstrap/argocd/`: local Argo overrides and the Backstage `Application`.
 - `bootstrap/argocd/generated-applicationset.yaml`: repo-owned `ApplicationSet`
   that auto-discovers committed generated app definitions under `apps/*/argocd`.
-- `base/backstage/`: raw Backstage stack manifests.
+- `base/backstage/`: raw Backstage application manifests, without a database
+  workload or database credentials.
   The cluster-specific Backstage config is kept as
   `base/backstage/app-config.kubernetes.yaml` and packaged into a `ConfigMap`
   by that kustomization, rather than embedded inline in a manifest.
-- `overlays/local/`: local aggregators used by the local Argo CD workflow.
+- `overlays/local/`: local aggregators used by the local Argo CD workflow. The
+  Backstage overlay owns its disposable Postgres pod, Service, and demo Secret.
 - `overlays/ec2/`: EC2-specific aggregators, including the versioned ECR image
   selection, ECR image-pull configuration, external Backstage URL, and
-  Backstage NodePort. The EC2 bootstrap installs a Backstage Argo CD
-  `Application` that targets this overlay.
+  Backstage NodePort. It uses the private RDS instance created by Terraform
+  rather than deploying Postgres into k3d. The EC2 bootstrap installs a
+  Backstage Argo CD `Application` that targets this overlay.
 
 ## Bootstrap Order
 
@@ -146,11 +149,15 @@ automatically.
 
 ## Secrets
 
-`k8s/base/backstage/` contains demo `Secret` objects with obvious local-only values. They are committed on purpose:
+`k8s/overlays/local/backstage/` contains the demo Postgres `Secret` with
+obvious local-only values. It is committed on purpose:
 
 - the cluster is disposable
 - guest auth is enabled
 - there is no cloud access in the default lab
 - the values are only for local development
 
-If you want to override them, apply a replacement `Secret` with the same name before restarting the Backstage or Postgres pods.
+If you want to override it, apply a replacement `Secret` with the same name
+before restarting the Backstage or Postgres pods. The EC2 workflow instead
+creates `postgres-secrets` at runtime from Terraform-generated RDS values held
+in SSM Parameter Store; those values are not committed.

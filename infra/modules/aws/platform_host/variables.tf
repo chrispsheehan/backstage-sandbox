@@ -53,6 +53,11 @@ variable "instance_profile_name" {
   type = string
 }
 
+variable "instance_role_name" {
+  type        = string
+  description = "IAM role attached through the supplied instance profile."
+}
+
 variable "ecr_repository_url" {
   type        = string
   description = "Private ECR repository containing the Backstage runtime image."
@@ -68,6 +73,16 @@ variable "backstage_github_client_secret" {
   type        = string
   description = "GitHub OAuth client secret loaded by Backstage on the EC2 lab."
   sensitive   = true
+}
+
+variable "database_parameter_prefix" {
+  type        = string
+  description = "Randomized SSM path containing the database connection settings."
+}
+
+variable "database_parameter_revision" {
+  type        = string
+  description = "Opaque revision that replaces the host when database parameters change."
 }
 
 variable "platform_repo_files" {

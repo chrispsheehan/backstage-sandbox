@@ -18,7 +18,7 @@ resource "aws_ssm_document" "run_shell" {
 
 resource "aws_iam_role_policy" "caddy_route53" {
   name   = "${var.base_name}-caddy-route53"
-  role   = data.aws_iam_instance_profile.platform.role_name
+  role   = var.instance_role_name
   policy = data.aws_iam_policy_document.caddy_route53.json
 }
 
@@ -105,12 +105,14 @@ resource "aws_instance" "this" {
   user_data_replace_on_change = true
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {
     aws_region = var.aws_region
-    backstage_auth_revision = join(":", [
+    backstage_runtime_revision = join(":", [
       aws_ssm_parameter.backstage_backend_secret.version,
       aws_ssm_parameter.backstage_github_client_id.version,
       aws_ssm_parameter.backstage_github_client_secret.version,
+      var.database_parameter_revision,
     ])
     backstage_parameter_prefix  = "/${var.base_name}/backstage/${random_id.backstage_parameters.hex}"
+    database_parameter_prefix   = var.database_parameter_prefix
     argocd_hostname             = local.argocd_hostname
     argocd_url                  = local.argocd_url
     backstage_hostname          = local.backstage_hostname
