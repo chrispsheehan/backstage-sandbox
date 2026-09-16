@@ -90,14 +90,17 @@ scripts/lab/install-crossplane-providers.sh ec2
 ```
 
 The `ec2` profile applies `ClusterProviderConfig/default` with
-`credentials.source: IRSA`. In the Upbound AWS provider this selects the AWS
-SDK default credential chain. This k3d deployment does not inject EKS
-web-identity variables, so the chain falls through to the EC2 instance metadata
-service and obtains temporary credentials from the host's instance profile
-instead of a Kubernetes Secret. Do not use `None` here: provider-aws treats it
-as the static-secret path and fails with empty static credentials. Terraform
-attaches the instance profile to the host and grants it S3 access only for
-buckets matching the static-site suffix `-<account-id>-<region>`.
+`credentials.source: PodIdentity`. In the Upbound AWS provider this selects the
+AWS SDK default credential chain without activating its IRSA token-file cache.
+This k3d deployment does not inject an EKS Pod Identity credential endpoint, so
+the chain falls through to the EC2 instance metadata service and obtains
+temporary credentials from the host's instance profile instead of a Kubernetes
+Secret. Do not use `None` here: provider-aws treats it as the static-secret path
+and fails with empty static credentials. Do not use `IRSA` without an injected
+web-identity token either: provider-aws attempts to hash the absent token file.
+Terraform attaches the instance profile to the host and grants it S3 access
+only for buckets matching the static-site suffix
+`-<account-id>-<region>`.
 
 The k3d node container and its pods add nested network hops between the AWS SDK
 and EC2 metadata, so this deployment configures IMDSv2 with a response hop

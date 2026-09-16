@@ -4,7 +4,9 @@ metadata:
   name: default
 spec:
   credentials:
-    # Upbound's IRSA path loads the AWS SDK default credential chain. Because
-    # this k3d deployment has no web-identity environment variables, the chain
-    # obtains temporary credentials from the EC2 instance profile via IMDSv2.
-    source: IRSA
+    # Upbound's PodIdentity path loads the AWS SDK default credential chain
+    # without requiring the web-identity token file that its IRSA path hashes.
+    # With no EKS credential endpoint injected into this k3d deployment, the
+    # chain obtains temporary credentials from the EC2 instance profile via
+    # IMDSv2.
+    source: PodIdentity
