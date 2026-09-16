@@ -49,13 +49,13 @@ variable "platform_security_group_id" {
   type = string
 }
 
-variable "instance_profile_name" {
-  type = string
+variable "load_balancer_security_group_id" {
+  type        = string
+  description = "Security group accepting public HTTPS on the platform load balancer."
 }
 
-variable "instance_role_name" {
-  type        = string
-  description = "IAM role attached through the supplied instance profile."
+variable "instance_profile_name" {
+  type = string
 }
 
 variable "ecr_repository_url" {

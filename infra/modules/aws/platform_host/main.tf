@@ -16,12 +16,6 @@ resource "aws_ssm_document" "run_shell" {
   })
 }
 
-resource "aws_iam_role_policy" "caddy_route53" {
-  name   = "${var.base_name}-caddy-route53"
-  role   = var.instance_role_name
-  policy = data.aws_iam_policy_document.caddy_route53.json
-}
-
 data "archive_file" "platform_repo" {
   type        = "zip"
   output_path = "${path.root}/.terraform/platform-repo.zip"
@@ -95,10 +89,12 @@ resource "aws_ssm_parameter" "backstage_github_client_secret" {
 }
 
 resource "aws_instance" "this" {
-  ami                         = data.aws_ami.amazon_linux_2023_arm64.id
-  instance_type               = var.instance_type
-  subnet_id                   = sort(data.aws_subnets.public.ids)[0]
-  associate_public_ip_address = false
+  ami           = data.aws_ami.amazon_linux_2023_arm64.id
+  instance_type = var.instance_type
+  subnet_id     = sort(data.aws_subnets.public.ids)[0]
+  # The ALB owns inbound traffic. This ephemeral address is used only for
+  # outbound package and image downloads; the lab deliberately has no NAT.
+  associate_public_ip_address = true
   vpc_security_group_ids      = [var.platform_security_group_id]
   iam_instance_profile        = var.instance_profile_name
 
@@ -123,7 +119,6 @@ resource "aws_instance" "this" {
     git_revision                = var.git_revision
     platform_repo_content_hash  = data.archive_file.platform_repo.output_sha256
     platform_repo_s3_uri        = "s3://${aws_s3_bucket.bootstrap.bucket}/${aws_s3_object.platform_repo.key}"
-    route53_hosted_zone_id      = data.aws_route53_zone.public.zone_id
   })
 
   metadata_options {
@@ -139,35 +134,9 @@ resource "aws_instance" "this" {
   }
 
   depends_on = [
-    aws_iam_role_policy.caddy_route53,
     aws_s3_object.platform_repo,
     aws_ssm_parameter.backstage_backend_secret,
     aws_ssm_parameter.backstage_github_client_id,
     aws_ssm_parameter.backstage_github_client_secret,
   ]
-}
-
-resource "aws_eip" "this" {
-  domain = "vpc"
-}
-
-resource "aws_eip_association" "this" {
-  allocation_id = aws_eip.this.id
-  instance_id   = aws_instance.this.id
-}
-
-resource "aws_route53_record" "backstage" {
-  zone_id = data.aws_route53_zone.public.zone_id
-  name    = local.backstage_hostname
-  type    = "A"
-  ttl     = 60
-  records = [aws_eip.this.public_ip]
-}
-
-resource "aws_route53_record" "argocd" {
-  zone_id = data.aws_route53_zone.public.zone_id
-  name    = local.argocd_hostname
-  type    = "A"
-  ttl     = 60
-  records = [aws_eip.this.public_ip]
 }

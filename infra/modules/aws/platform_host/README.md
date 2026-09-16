@@ -1,22 +1,19 @@
 # Platform Host Module
 
-Creates the single-node dev platform host, its Elastic IP, and least-cost
-bootstrap surface. It consumes the security group, instance profile, and role
-owned by the separate `security` and `platform_role` stacks.
+Creates the single-node dev platform host and its public ALB entry point. It
+consumes the platform and load-balancer security groups plus the instance
+profile owned by the separate `security` and `platform_role` stacks.
 
 The module discovers the existing VPC by exact `Name` tag, public subnets by
 `*public*` `Name` tag, and the existing public `chrispsheehan.com` Route 53
-hosted zone by name. It creates Backstage and Argo CD A records targeting the
-module-owned Elastic IP. EC2 user data installs Docker, kubectl, Helm, and k3d,
-then creates a k3d cluster with Argo CD, Crossplane core, and the AWS providers.
-On EC2, user data builds and starts the host-networked Caddy container before
-creating the k3d cluster. This gives the custom-image build the host's memory
-before the platform workloads start and keeps Argo CD exposure independent of
-Backstage readiness. Caddy owns public ports 80 and 443. k3d then binds the
-Backstage and Argo CD NodePorts to host loopback ports 30070 and 30443. Caddy
-routes by hostname, obtains its certificates through Route 53 DNS-01, and
-preserves Argo CD's native TLS mode on the loopback upstream. Bootstrap verifies
-both HTTPS routes after Backstage rolls out.
+hosted zone by name. It creates an internet-facing ALB across those subnets, an
+ACM certificate, and Backstage and Argo CD alias A records targeting the ALB.
+The HTTPS listener routes by hostname to separate target groups. EC2 user data
+installs Docker, kubectl, Helm, and k3d, then creates a k3d cluster with Argo CD,
+Crossplane core, and the AWS providers. k3d binds the Backstage and Argo CD
+NodePorts to host ports 30070 and 30443. The platform security group accepts
+those ports only from the ALB security group. Bootstrap verifies both services
+locally after Backstage rolls out.
 Before Argo CD deploys Backstage from the EC2 overlay, user data reads its
 backend secret, GitHub OAuth values, and RDS connection settings from SSM
 Parameter Store and creates the runtime, database, and ECR pull Secrets in
@@ -31,11 +28,6 @@ Terraform state. Terraform generates the 64-character backend secret, and the
 database module generates the PostgreSQL password and passes only its parameter
 path and revision into this module; only the OAuth values come from `.env`.
 Database credentials are not embedded in user data or platform-host state.
-
-The module adds a narrow inline policy to the supplied instance-profile role.
-It permits Caddy to list records in the discovered zone and change only TXT
-records for the two `_acme-challenge` names. Caddy's certificate state lives
-under `/opt/backstage-sandbox/.caddy` and is ephemeral with the host.
 
 Terraform creates a private, encrypted bootstrap bucket with `force_destroy =
 true`, stages the repo's `config/`, `crossplane/`, `k8s/`, and shared
@@ -52,5 +44,6 @@ lab readiness signal.
 
 Changing the copied files or user data replaces the disposable host. Any
 cluster and runtime data created manually on it are therefore ephemeral. The
-bootstrap bucket, its object, and the two DNS records are removed with this
-module. The existing hosted zone is only read and is never owned or destroyed.
+bootstrap bucket, its object, the ALB, ACM certificate, and DNS records are
+removed with this module. The existing hosted zone is only read and is never
+owned or destroyed.

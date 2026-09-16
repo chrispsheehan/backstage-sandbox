@@ -9,8 +9,9 @@ This repo implements a local-first platform lab built around four components:
 
 The design is intentionally ephemeral. Rebuilding from scratch is the normal workflow, not an exception.
 
-An optional dev-only AWS deployment provides an EC2 platform lab with an
-Elastic IP, SSM access, and a disposable Single-AZ RDS PostgreSQL database. The
+An optional dev-only AWS deployment provides an EC2 platform lab behind a
+public Application Load Balancer, with SSM access and a disposable Single-AZ
+RDS PostgreSQL database. The
 database has no public address and accepts connections only from the EC2
 host's security group. The host installs Docker, kubectl, Helm, and k3d; copies
 the repo's `config/`, `k8s/`, and shared `scripts/lab/` trees to the host; then
@@ -18,9 +19,11 @@ creates a k3d cluster with Argo CD and Crossplane core and installs an
 `ApplicationSet` that continuously discovers committed `apps/*/argocd`
 definitions. It also deploys Backstage from the EC2 Kustomize overlay after
 creating its runtime, database, and ECR pull secrets from SSM and the instance
-role. It uses two records in the existing `chrispsheehan.com` hosted zone and an
-EC2-hosted Caddy reverse proxy with public ACME certificates while avoiding
-EKS, load balancers, NAT gateways, and hosted-zone creation. See
+role. It uses two records in the existing `chrispsheehan.com` hosted zone, an
+ACM certificate, and ALB host-based routing for the two public HTTPS URLs. The
+EC2 instance has an ephemeral public IPv4 address for outbound bootstrap
+traffic, but accepts application traffic only from the ALB security group. The
+deployment avoids EKS, NAT gateways, and hosted-zone creation. See
 [infra/README.md](infra/README.md) for its architecture, prerequisites, cost,
 secret flow, and Terragrunt commands.
 

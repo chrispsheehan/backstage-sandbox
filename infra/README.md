@@ -14,12 +14,15 @@ The `just deploy` deployment creates:
   pull, and generated-site S3 permissions
 - one `t4g.medium` Amazon Linux 2023 EC2 workstation
 - one encrypted 30 GiB gp3 root volume
-- an Elastic IP
-- two A records in the existing public `chrispsheehan.com` Route 53 hosted zone
-- a Caddy reverse-proxy container built on the host with Route 53 DNS-01 support
-- a separately managed security group exposing Caddy ports 80 and 443 only to
-  the Terraform caller's current public IPv4 address, with administration
-  through SSM
+- an ephemeral public IPv4 address on EC2 for direct internet egress without a
+  NAT gateway
+- one internet-facing Application Load Balancer spanning the existing public
+  subnets, with an ACM certificate and host-based routing
+- two alias A records in the existing public `chrispsheehan.com` Route 53
+  hosted zone pointing to that load balancer
+- a load-balancer security group exposing ports 80 and 443 only to the
+  Terraform caller's current public IPv4 address, plus a platform security
+  group accepting the two application ports only from the load balancer
 - one encrypted, Single-AZ `db.t4g.micro` RDS PostgreSQL instance with 20 GiB
   gp3 storage, no public address, and port 5432 allowed only from the platform
   EC2 security group
@@ -28,23 +31,22 @@ The `just deploy` deployment creates:
 Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
 it to the platform-host module. EC2 user data installs Docker, uses the AWS CLI
 already supplied by Amazon Linux 2023, and runs that script to install kubectl,
-Helm, and k3d. It builds and starts Caddy before creating the cluster so the
-custom-image build has the host's memory available and Argo CD exposure does
-not depend on Backstage becoming healthy. The shared lab bootstrap then creates
+Helm, and k3d. The shared lab bootstrap then creates
 a k3d cluster, installs Argo CD and Crossplane core, installs the Crossplane AWS
 providers, and configures them to use the EC2 instance profile through the AWS
 SDK's ambient credential chain. Before installing the Argo CD
 applications, it reads the Backstage backend secret, GitHub OAuth credentials,
 and RDS connection settings from SSM Parameter Store and creates runtime-only
 Kubernetes Secrets for those values and ECR image pulls. The same OAuth values
-configure Argo CD's Dex connector with its stable Route 53 URL. It then applies the EC2
-Backstage `Application` and the repo-owned
+configure Argo CD's Dex connector with its stable Route 53 URL. It then applies
+the EC2 Backstage `Application` and the repo-owned
 `ApplicationSet`, which continuously discovers committed `apps/*/argocd`
-definitions on `main` and polls Git once per minute. Caddy owns host ports 80
-and 443, terminates browser-trusted HTTPS, and selects Backstage or Argo CD from
-the requested hostname. Their k3d NodePorts bind to EC2 loopback only. After
-Backstage rolls out, bootstrap verifies both public HTTPS routes through Caddy.
-It does not configure External Secrets Operator or an ingress controller.
+definitions on `main` and polls Git once per minute. The k3d NodePorts bind to
+the EC2 host interface but are reachable only from the ALB security group. The
+ALB terminates browser-trusted HTTPS with ACM and selects Backstage or Argo CD
+from the requested hostname. Bootstrap verifies both services locally after
+Backstage rolls out. It does not configure External Secrets Operator or an
+in-cluster ingress controller.
 
 Terraform also packages the current contents of `config/`, `k8s/`,
 `scripts/lab/`, `crossplane/providers/`, and
@@ -59,15 +61,12 @@ snapshot stays deterministic.
 The bucket has `force_destroy = true`, so destroying `platform_host` removes
 the ZIP and bucket together.
 
-There is no EKS cluster, load balancer, NAT gateway, hosted-zone creation, or
-production environment. RDS uses the existing public subnets only because this
+There is no EKS cluster, NAT gateway, hosted-zone creation, or production
+environment. RDS uses the existing public subnets only because this
 lab has no private subnet tier; `publicly_accessible = false` means it receives
 no public address, and its security group has no CIDR-based ingress. The
-existing hosted zone is discovered rather than managed. Caddy obtains and
-renews its public certificates through ACME without
-requiring an account email. Its Route 53 provider waits for each DNS change to
-reach `INSYNC` before ACME validation, avoiding secondary-validator races while
-the temporary TXT record propagates.
+existing hosted zone is discovered rather than managed. ACM obtains and renews
+the public certificate through DNS validation records managed in that zone.
 
 ## Existing Network Prerequisite
 
@@ -84,15 +83,15 @@ Before deploying, verify the existing network meets this contract:
 | Existing resource | Required configuration | Example |
 | --- | --- | --- |
 | VPC | Exactly one VPC has an exact, case-sensitive `Name` tag matching `vpc_name`; VPC DNS resolution is enabled | `Name = vpc` |
-| EC2 subnet | Belongs to that VPC, has a case-sensitive `Name` tag containing `public`, and routes `0.0.0.0/0` to an attached internet gateway | `Name = public-eu-west-2a` |
-| Additional RDS subnet | Belongs to the same VPC, has a `Name` tag containing `public`, and is in a different availability zone | `Name = public-eu-west-2b` |
-| Availability zones | The matching subnet set covers at least two distinct AZs; RDS requires this even though the database is Single-AZ | `eu-west-2a`, `eu-west-2b` |
+| Public subnets | At least two belong to that VPC, have case-sensitive `Name` tags containing `public`, are in different availability zones, and route `0.0.0.0/0` to an attached internet gateway | `Name = public-eu-west-2a`, `Name = public-eu-west-2b` |
+| Availability zones | The matching subnet set covers at least two distinct AZs; both the ALB and RDS subnet group require this | `eu-west-2a`, `eu-west-2b` |
 
 Change `vpc_name` in `live/global_vars.hcl` if the VPC uses another exact
-`Name` value. The platform host selects the lexically first matching subnet,
-so make sure that subnet has the internet-gateway route required for its
-Elastic IP, package installation, and outbound access. The database subnet
-group spans every matching subnet. Those subnets do not make RDS public:
+`Name` value. The ALB and database subnet group span every matching subnet. The
+platform host selects the lexically first one and receives an ephemeral public
+IPv4 address for package installation and outbound access, so that subnet also
+needs the internet-gateway route. No NAT gateway is required. Those subnets do
+not make RDS public:
 `publicly_accessible = false` gives it private connectivity only, and its
 security group permits PostgreSQL solely from the platform EC2 security group.
 
@@ -111,8 +110,9 @@ state bucket must already exist. Destroying the live stacks does not remove it.
 ## Prerequisites
 
 - Terraform 1.11 or newer, Terragrunt, AWS CLI, and `just`
-- local AWS credentials authorized to manage EC2, ECR, RDS, IAM, SSM and the state
-  bucket, and to read the hosted zone and manage its two A records
+- local AWS credentials authorized to manage EC2, ELBv2, ACM, ECR, RDS, IAM,
+  SSM and the state bucket, and to read the hosted zone and manage its alias and
+  certificate-validation records
 - the Terragrunt state bucket described above already created
 - `AWS_REGION=eu-west-2`, unless the default is suitable
 - repo-root `.env` values for `AUTH_GITHUB_CLIENT_ID` and
@@ -207,16 +207,14 @@ just shell
 ```
 
 The `platform_host` output includes `https://backstage.chrispsheehan.com` and
-`https://argocd.chrispsheehan.com`. Both Route 53 A records target the Elastic
-IP, and Caddy selects the service from the requested hostname. Caddy obtains
-browser-trusted certificates with a Route 53 DNS-01 challenge; the EC2 role can
-change only the two required `_acme-challenge` TXT records. Its certificate
-state lives under `/opt/backstage-sandbox/.caddy`, so container restarts retain
-it while replacing the disposable host starts with fresh state.
+`https://argocd.chrispsheehan.com`. Both Route 53 alias A records target the
+ALB. Its HTTPS listener uses an ACM-managed certificate and host rules forward
+Backstage to port 30070 over HTTP and Argo CD to port 30443 over HTTPS. The EC2
+security group permits those ports only from the ALB security group.
 
-Argo CD's TLS server remains enabled and does not set `server.insecure`. Caddy
-accepts Argo CD's generated certificate only on the loopback-only upstream hop
-to `127.0.0.1:30443`; clients see Caddy's trusted certificate instead.
+Argo CD's TLS server remains enabled and does not set `server.insecure`. The
+ALB accepts Argo CD's generated certificate on the private VPC hop; clients see
+the ACM certificate instead.
 
 The Argo CD login page offers **Log in via GitHub** after bootstrap. Add this
 authorization callback URL to the GitHub OAuth app used by `.env` before
@@ -356,28 +354,32 @@ Estimated `eu-west-2` cost, checked 16 September 2026:
 | --- | --- | ---: | ---: |
 | EC2 | One Linux `t4g.medium`, on demand | `$0.03760` | `$27.45` |
 | EBS | 30 GiB gp3 at `$0.0928/GiB-month` | `$0.00381` | `$2.78` |
-| Public IPv4 | One Elastic IP | `$0.00500` | `$3.65` |
+| Public IPv4 | One EC2 address plus two ALB addresses | `$0.01500` | `$10.95` |
+| Application Load Balancer | One ALB, excluding usage-based LCUs | `$0.02646` | `$19.32` |
 | RDS compute | One PostgreSQL `db.t4g.micro`, Single-AZ, on demand | `$0.01800` | `$13.14` |
 | RDS storage | 20 GiB gp3 at `$0.133/GiB-month` | `$0.00364` | `$2.66` |
 | Session Manager | Standard EC2 managed node | `$0.00000` | `$0.00` |
 | ECR and S3 | Empty ECR plus the small bootstrap ZIP and state files | Usage based | `<$0.01` |
-| **Estimated baseline** | Host and database running continuously | **`$0.06805`** | **`$49.68`** |
+| **Estimated fixed baseline** | Host, ALB, and database running continuously | **`$0.10451`** | **`$76.30`** |
 
-That baseline is about `$1.63/day`. It excludes outbound data transfer,
-requests beyond this small bootstrap, stored container images, resources later
-created through Crossplane, and T4g surplus CPU-credit charges if sustained CPU
-use exceeds the instance baseline.
+That fixed baseline is about `$2.51/day`. It excludes ALB capacity units
+(`$0.0084` per LCU-hour), outbound data transfer, requests beyond this small
+bootstrap, stored container images, resources later created through Crossplane,
+and T4g surplus CPU-credit charges if sustained CPU use exceeds the instance
+baseline.
 
 Stopping rather than destroying only the EC2 instance removes its compute
-charge, but RDS, the 30 GiB disk, and public IPv4 continue to accrue charges.
-`just destroy` removes the host, disk,
-Elastic IP, the two platform DNS records, bootstrap object, and force-destroy
-bootstrap bucket, and permanently deletes RDS without a final snapshot; it
-retains ECR and its images. `just destroy-all` also removes ECR. The existing
-hosted zone and shared Terragrunt state bucket remain in both cases.
+charge and releases its ephemeral public IPv4 address, but the ALB, its public
+IPv4 addresses, RDS, and the 30 GiB disk continue to accrue charges. `just
+destroy` removes the host, disk, ALB, ACM certificate, platform DNS and
+validation records, bootstrap object, and force-destroy bootstrap bucket, and
+permanently deletes RDS without a final snapshot; it retains ECR and its
+images. `just destroy-all` also removes ECR. The existing hosted zone and shared
+Terragrunt state bucket remain in both cases.
 
 Sources: [AWS EC2 On-Demand pricing](https://aws.amazon.com/ec2/pricing/on-demand/),
 [AWS EBS pricing](https://aws.amazon.com/ebs/pricing/),
+[AWS Elastic Load Balancing pricing](https://aws.amazon.com/elasticloadbalancing/pricing/),
 [AWS RDS pricing](https://aws.amazon.com/rds/postgresql/pricing/),
 [AWS VPC public IPv4 pricing](https://aws.amazon.com/vpc/pricing/), and
 [AWS Systems Manager pricing](https://aws.amazon.com/systems-manager/pricing/).

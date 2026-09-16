@@ -98,13 +98,13 @@ Argo CD is there for GitOps inspection, and Backstage is exposed locally via a
 service port-forward on `http://localhost:7007`.
 
 The optional EC2 bootstrap binds Backstage NodePort 30070 and Argo CD HTTPS
-NodePort 30443 to EC2 loopback only. A host-networked Caddy container is the
-sole public entry point on ports 80 and 443. Route 53 maps
-`backstage.chrispsheehan.com` and `argocd.chrispsheehan.com` to the same Elastic
-IP, and Caddy selects the service from the hostname while terminating
-browser-trusted HTTPS. Argo CD retains its own TLS on the loopback upstream and
-`server.insecure` is not enabled. Both public security-group rules are
-restricted to the Terraform caller's current public IPv4 address.
+NodePort 30443 to the EC2 host interface. The platform security group accepts
+those ports only from the public ALB security group. Route 53 maps
+`backstage.chrispsheehan.com` and `argocd.chrispsheehan.com` to that ALB, which
+terminates browser-trusted HTTPS with ACM and selects the target group from the
+hostname. Argo CD retains TLS on the ALB-to-instance hop and `server.insecure`
+is not enabled. The ALB's public ports 80 and 443 are restricted to the
+Terraform caller's current public IPv4 address.
 
 EC2 user data also renders the EC2-specific Dex configuration from the GitHub
 OAuth values held in SSM Parameter Store. Its callback URL is

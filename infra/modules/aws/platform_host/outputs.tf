@@ -11,7 +11,12 @@ output "bootstrap_bucket_name" {
 }
 
 output "public_ip" {
-  value = aws_eip.this.public_ip
+  description = "Ephemeral EC2 public IPv4 used only for outbound access."
+  value       = aws_instance.this.public_ip
+}
+
+output "load_balancer_dns_name" {
+  value = aws_lb.platform.dns_name
 }
 
 output "backstage_url" {

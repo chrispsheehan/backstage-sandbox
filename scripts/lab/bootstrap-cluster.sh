@@ -4,6 +4,7 @@ set -euo pipefail
 cluster_name="${CLUSTER_NAME:-platform-lab}"
 argocd_https_host_port="${ARGOCD_HTTPS_HOST_PORT:-}"
 backstage_http_host_port="${BACKSTAGE_HTTP_HOST_PORT:-}"
+platform_host_bind_address="${PLATFORM_HOST_BIND_ADDRESS:-127.0.0.1}"
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_dir="$(cd -- "${script_dir}/../.." && pwd)"
 
@@ -15,6 +16,10 @@ for bin in kubectl helm k3d; do
 done
 
 if ! k3d cluster list | awk 'NR > 1 { print $1 }' | grep -qx "${cluster_name}"; then
+  if [[ ! "${platform_host_bind_address}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+    echo "PLATFORM_HOST_BIND_ADDRESS must be an IPv4 address." >&2
+    exit 1
+  fi
   cluster_create_args=(
     --servers 1
     --agents 0
@@ -26,14 +31,14 @@ if ! k3d cluster list | awk 'NR > 1 { print $1 }' | grep -qx "${cluster_name}"; 
       echo "ARGOCD_HTTPS_HOST_PORT must be numeric." >&2
       exit 1
     fi
-    cluster_create_args+=(--port "127.0.0.1:${argocd_https_host_port}:30443@server:0")
+    cluster_create_args+=(--port "${platform_host_bind_address}:${argocd_https_host_port}:30443@server:0")
   fi
   if [[ -n "${backstage_http_host_port}" ]]; then
     if [[ ! "${backstage_http_host_port}" =~ ^[0-9]+$ ]]; then
       echo "BACKSTAGE_HTTP_HOST_PORT must be numeric." >&2
       exit 1
     fi
-    cluster_create_args+=(--port "127.0.0.1:${backstage_http_host_port}:30070@server:0")
+    cluster_create_args+=(--port "${platform_host_bind_address}:${backstage_http_host_port}:30070@server:0")
   fi
   k3d cluster create "${cluster_name}" "${cluster_create_args[@]}"
 else

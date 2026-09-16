@@ -17,8 +17,10 @@ dependency "security" {
   config_path = "../security"
 
   mock_outputs = {
-    platform_security_group_id = "sg-00000000000000000"
+    platform_security_group_id      = "sg-00000000000000000"
+    load_balancer_security_group_id = "sg-00000000000000001"
   }
+  mock_outputs_merge_strategy_with_state  = "shallow"
   mock_outputs_allowed_terraform_commands = ["validate", "plan", "destroy"]
 }
 
@@ -56,13 +58,13 @@ terraform {
 }
 
 inputs = {
-  bootstrap_script            = file("${local.repo_root}/scripts/aws/bootstrap-platform-host.sh")
-  ecr_repository_url          = dependency.ecr.outputs.repository_url
-  hosted_zone_name            = "chrispsheehan.com"
-  instance_profile_name       = dependency.platform_role.outputs.instance_profile_name
-  instance_role_name          = dependency.platform_role.outputs.role_name
-  platform_repo_files         = { for path in local.platform_repo_paths : path => file("${local.repo_root}/${path}") }
-  platform_security_group_id  = dependency.security.outputs.platform_security_group_id
-  database_parameter_prefix   = dependency.database.outputs.parameter_prefix
-  database_parameter_revision = dependency.database.outputs.parameter_revision
+  bootstrap_script                = file("${local.repo_root}/scripts/aws/bootstrap-platform-host.sh")
+  ecr_repository_url              = dependency.ecr.outputs.repository_url
+  hosted_zone_name                = "chrispsheehan.com"
+  instance_profile_name           = dependency.platform_role.outputs.instance_profile_name
+  load_balancer_security_group_id = dependency.security.outputs.load_balancer_security_group_id
+  platform_repo_files             = { for path in local.platform_repo_paths : path => file("${local.repo_root}/${path}") }
+  platform_security_group_id      = dependency.security.outputs.platform_security_group_id
+  database_parameter_prefix       = dependency.database.outputs.parameter_prefix
+  database_parameter_revision     = dependency.database.outputs.parameter_revision
 }

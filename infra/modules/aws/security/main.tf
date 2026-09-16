@@ -1,10 +1,24 @@
 resource "aws_security_group" "platform" {
   name        = "${var.base_name}-platform"
-  description = "Public web ingress for the development platform host"
+  description = "Private application ingress for the development platform host"
+  vpc_id      = data.aws_vpc.this.id
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
+resource "aws_security_group" "load_balancer" {
+  name        = "${var.base_name}-load-balancer"
+  description = "Public web ingress for the development platform load balancer"
   vpc_id      = data.aws_vpc.this.id
 
   ingress {
-    description = "Caddy HTTP redirect ingress"
+    description = "HTTP redirect from the Terraform caller"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -12,7 +26,7 @@ resource "aws_security_group" "platform" {
   }
 
   ingress {
-    description = "Caddy HTTPS ingress"
+    description = "HTTPS from the Terraform caller"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -26,6 +40,24 @@ resource "aws_security_group" "platform" {
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "backstage_from_load_balancer" {
+  security_group_id            = aws_security_group.platform.id
+  referenced_security_group_id = aws_security_group.load_balancer.id
+  description                  = "Backstage from the platform load balancer only"
+  from_port                    = 30070
+  to_port                      = 30070
+  ip_protocol                  = "tcp"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "argocd_from_load_balancer" {
+  security_group_id            = aws_security_group.platform.id
+  referenced_security_group_id = aws_security_group.load_balancer.id
+  description                  = "Argo CD from the platform load balancer only"
+  from_port                    = 30443
+  to_port                      = 30443
+  ip_protocol                  = "tcp"
 }
 
 resource "aws_security_group" "postgres" {
