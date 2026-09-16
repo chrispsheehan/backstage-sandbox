@@ -1,0 +1,28 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketPolicy
+metadata:
+  name: uyvuyvuyvuyvuv
+  namespace: apps-uyvuyvuyvuyvuv
+  annotations:
+    crossplane.io/poll-interval: "5m"
+spec:
+  forProvider:
+    region: eu-west-2
+    bucketRef:
+      name: uyvuyvuyvuyvuv
+    policy: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "PublicReadForWebsite",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::tht-this-700060376888-eu-west-2/*"
+          }
+        ]
+      }
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig

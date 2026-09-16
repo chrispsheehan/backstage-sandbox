@@ -1,0 +1,15 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: Bucket
+metadata:
+  name: uyvuyvuyvuyvuv
+  namespace: apps-uyvuyvuyvuyvuv
+  annotations:
+    crossplane.io/external-name: tht-this-700060376888-eu-west-2
+    crossplane.io/poll-interval: "5m"
+spec:
+  forProvider:
+    region: eu-west-2
+    forceDestroy: true
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig
