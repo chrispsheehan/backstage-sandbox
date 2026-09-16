@@ -304,15 +304,18 @@ removing a committed `apps/*/argocd` definition, is therefore reconciled
 automatically without another `kubectl apply`.
 
 Destroy the disposable host, role, and security group while retaining ECR and
-its pushed images. The recipe uses automatic approval and does not prompt for
-confirmation:
+its pushed images. The recipe runs the environment-wide Terragrunt destroy in
+reverse dependency order with `--queue-exclude-dir=aws/ecr`, rather than
+maintaining a list of modules to destroy. It uses non-interactive mode and
+automatic approval, so it does not prompt for confirmation:
 
 ```bash
 just destroy
 ```
 
 Remove the complete dev environment, including ECR and all of its images. This
-recipe is also non-interactive:
+recipe uses the same environment-wide destroy without the ECR exclusion and is
+also non-interactive:
 
 ```bash
 just destroy-all

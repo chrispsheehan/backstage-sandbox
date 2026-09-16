@@ -19,7 +19,7 @@ dependency "security" {
   mock_outputs = {
     platform_security_group_id = "sg-00000000000000000"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["validate", "plan", "destroy"]
 }
 
 dependency "platform_role" {
@@ -28,7 +28,7 @@ dependency "platform_role" {
   mock_outputs = {
     instance_profile_name = "backstage-sandbox-dev-ec2"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["validate", "plan", "destroy"]
 }
 
 dependency "ecr" {
@@ -37,7 +37,7 @@ dependency "ecr" {
   mock_outputs = {
     repository_url = "000000000000.dkr.ecr.eu-west-2.amazonaws.com/backstage-sandbox-dev"
   }
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["validate", "plan", "destroy"]
 }
 
 terraform {

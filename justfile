@@ -50,9 +50,7 @@ deploy:
 
 # Destroy the disposable dev runtime while retaining ECR and its images.
 destroy:
-    just tg dev aws/platform_host "destroy -auto-approve"
-    just tg dev aws/platform_role "destroy -auto-approve"
-    just tg dev aws/security "destroy -auto-approve"
+    just tg-all dev "destroy -auto-approve" "aws/ecr"
 
 # Destroy the complete dev environment, including ECR and its images.
 destroy-all:

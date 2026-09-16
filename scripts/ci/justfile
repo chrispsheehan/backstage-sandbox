@@ -23,8 +23,9 @@ tg env module op:
       --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}/{{ module }}" \
       {{ op }}
 
-# Run a Terragrunt operation across the selected environment.
-tg-all env op:
+# Run a Terragrunt operation across the selected environment, optionally
+# excluding one directory from Terragrunt's dependency-aware run queue.
+tg-all env op exclude_dir="":
     #!/usr/bin/env bash
     set -euo pipefail
     if [[ -f "{{ CI_PROJECT_DIR }}/.env" ]]; then
@@ -40,10 +41,14 @@ tg-all env op:
         AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
         export AWS_ACCOUNT_ID
     fi
-    export TG_NON_INTERACTIVE=true
+    exclude_args=()
+    if [[ -n "{{ exclude_dir }}" ]]; then
+        exclude_args+=(--queue-exclude-dir="{{ exclude_dir }}")
+    fi
     terragrunt \
+      --non-interactive \
       --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}" \
-      run --all {{ op }}
+      run --all "${exclude_args[@]}" -- {{ op }}
 
 # Root `just push-image` delegates to this CI workflow implementation.
 _push-image version:
