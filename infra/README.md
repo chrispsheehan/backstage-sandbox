@@ -224,6 +224,13 @@ console output can arrive in bursts rather than immediately. This path works
 while the SSM agent is deliberately offline during bootstrap; `just shell`
 becomes available only after bootstrap completes or fails.
 
+If the Backstage rollout fails, bootstrap writes a bounded diagnostic bundle to
+the same console output before exiting. It includes the Argo CD application,
+Backstage workloads and events, Backstage and Postgres deployment descriptions,
+and the latest 200 lines of current and previous logs from every pod in the
+`backstage` namespace. The rollout still returns a failure, and the SSM agent is
+then restored for interactive follow-up.
+
 Terraform creates a lab-specific Session document, and `just shell` uses it
 to start directly as `ec2-user`. This gives the session the correct Docker
 group membership and k3d kubeconfig. Its shell profile adds `/usr/local/bin` to
