@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: uyvuyvuyvuyvuv-website
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/chrispsheehan/backstage-sandbox.git
+    targetRevision: main
+    path: apps/uyvuyvuyvuyvuv/crossplane
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps-uyvuyvuyvuyvuv
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,19 @@
+apiVersion: s3.aws.m.upbound.io/v1beta1
+kind: BucketPublicAccessBlock
+metadata:
+  name: uyvuyvuyvuyvuv
+  namespace: apps-uyvuyvuyvuyvuv
+  annotations:
+    crossplane.io/poll-interval: "5m"
+spec:
+  forProvider:
+    region: eu-west-2
+    bucketRef:
+      name: uyvuyvuyvuyvuv
+    blockPublicAcls: false
+    blockPublicPolicy: false
+    ignorePublicAcls: false
+    restrictPublicBuckets: false
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig
