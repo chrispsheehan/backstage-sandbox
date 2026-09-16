@@ -7,7 +7,7 @@ resources:
 images:
   - name: backstage-lab
     newName: 700060376888.dkr.ecr.eu-west-2.amazonaws.com/backstage-sandbox-dev
-    newTag: df5051e26fe8419162358832973603af74cf3b88
+    newTag: 57877d3a400d389c7e9e03dd096a743ab1dc23f8
 
 patches:
   - path: serviceaccount-image-pull-secret.yaml
