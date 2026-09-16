@@ -161,7 +161,7 @@ If you want to override it, apply a replacement `Secret` with the same name
 before restarting the Backstage or Postgres pods. The EC2 workflow instead
 creates `postgres-secrets` at runtime from Terraform-generated RDS values held
 in SSM Parameter Store; those values are not committed. The disposable EC2
-overlay encrypts its RDS connection but sets `rejectUnauthorized: false`
-instead of mounting the Amazon RDS CA bundle. This relaxation is intentionally
-limited to the private sandbox deployment and is not suitable for a production
-database connection.
+overlay sets `PGSSLMODE=no-verify`, which encrypts its RDS connection without
+mounting the Amazon RDS CA bundle. This relaxation is intentionally limited to
+the private sandbox deployment and is not suitable for a production database
+connection.

@@ -1,5 +1,0 @@
-backend:
-  database:
-    connection:
-      ssl:
-        rejectUnauthorized: false

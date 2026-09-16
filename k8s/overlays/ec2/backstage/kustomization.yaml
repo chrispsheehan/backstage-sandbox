@@ -4,12 +4,6 @@ kind: Kustomization
 resources:
   - ../../../base/backstage
 
-configMapGenerator:
-  - name: backstage-ec2-runtime-config
-    namespace: backstage
-    files:
-      - app-config.ec2.yaml
-
 images:
   - name: backstage-lab
     newName: 700060376888.dkr.ecr.eu-west-2.amazonaws.com/backstage-sandbox-dev
@@ -19,4 +13,3 @@ patches:
   - path: serviceaccount-image-pull-secret.yaml
   - path: service-nodeport.yaml
   - path: external-url.yaml
-  - path: database-tls.yaml

@@ -15,3 +15,5 @@ spec:
                 secretKeyRef:
                   name: backstage-secrets
                   key: APP_BASE_URL
+            - name: PGSSLMODE
+              value: no-verify
