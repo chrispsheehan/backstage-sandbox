@@ -48,8 +48,14 @@ deploy:
     just bootstrap-logs
     just tg dev aws/platform_host output
 
-# Destroy all dev stacks in reverse Terragrunt dependency order.
+# Destroy the disposable dev runtime while retaining ECR and its images.
 destroy:
+    just tg dev aws/platform_host destroy
+    just tg dev aws/platform_role destroy
+    just tg dev aws/security destroy
+
+# Destroy the complete dev environment, including ECR and its images.
+destroy-all:
     just tg-all dev destroy
 
 # Open a Session Manager shell on the dev platform workstation.

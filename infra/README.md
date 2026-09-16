@@ -132,9 +132,10 @@ just deploy
 ```
 
 For a new environment, publish the image and commit the printed EC2 overlay
-change before running `just deploy`. A full `just destroy` removes the ECR
-repository and its images, so repeat `just push-image` before recreating the
-host.
+change before running `just deploy`. The normal `just destroy` retains ECR and
+its images so the selected image remains available when recreating the host.
+`just destroy-all` removes ECR too, so repeat `just push-image` after that full
+teardown.
 
 The Terragrunt recipes load repo-root `.env` before running. The platform-host
 stack receives the two OAuth values through sensitive `TF_VAR_` environment
@@ -297,10 +298,17 @@ filesystem. Updating the committed EC2 Backstage overlay, or adding or
 removing a committed `apps/*/argocd` definition, is therefore reconciled
 automatically without another `kubectl apply`.
 
-Destroy all dev stacks in reverse dependency order when the PoC is idle:
+Destroy the disposable host, role, and security group while retaining ECR and
+its pushed images:
 
 ```bash
 just destroy
+```
+
+Remove the complete dev environment, including ECR and all of its images:
+
+```bash
+just destroy-all
 ```
 
 ## Cost And Security Boundaries
@@ -324,9 +332,10 @@ use exceeds the instance baseline.
 Stopping rather than destroying the instance removes the EC2 compute charge,
 but the 30 GiB disk and public IPv4 continue to cost approximately
 `$0.00881/hour` or `$6.43/month`. `just destroy` removes the host, disk,
-Elastic IP, the two platform DNS records, ECR repository, bootstrap object, and
-force-destroy bootstrap bucket; the existing hosted zone and shared Terragrunt
-state bucket remain.
+Elastic IP, the two platform DNS records, bootstrap object, and force-destroy
+bootstrap bucket, but retains ECR and its images. `just destroy-all` also
+removes ECR. The existing hosted zone and shared Terragrunt state bucket remain
+in both cases.
 
 Sources: [AWS EC2 On-Demand pricing](https://aws.amazon.com/ec2/pricing/on-demand/),
 [AWS EBS pricing](https://aws.amazon.com/ebs/pricing/),
