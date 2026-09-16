@@ -61,7 +61,7 @@ printf 'BACKEND_SECRET=%s\nAUTH_GITHUB_CLIENT_ID=%s\nAUTH_GITHUB_CLIENT_SECRET=%
   "${backend_secret}" "${github_client_id}" "${github_client_secret}" "${backstage_url}" \
   >"${temporary_dir}/backstage.env"
 
-printf 'POSTGRES_HOST=%s\nPOSTGRES_PORT=%s\nPOSTGRES_DB=%s\nPOSTGRES_USER=%s\nPOSTGRES_PASSWORD=%s\nPGSSLMODE=require\n' \
+printf 'POSTGRES_HOST=%s\nPOSTGRES_PORT=%s\nPOSTGRES_DB=%s\nPOSTGRES_USER=%s\nPOSTGRES_PASSWORD=%s\n' \
   "${postgres_host}" "${postgres_port}" "${postgres_database}" \
   "${postgres_username}" "${postgres_password}" \
   >"${temporary_dir}/postgres.env"

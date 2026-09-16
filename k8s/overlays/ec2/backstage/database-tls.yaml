@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage
+  namespace: backstage
+spec:
+  template:
+    spec:
+      containers:
+        - name: backstage
+          command:
+            - node
+            - packages/backend
+            - --config
+            - app-config.yaml
+            - --config
+            - app-config.production.yaml
+            - --config
+            - /config/app-config.kubernetes.yaml
+            - --config
+            - /config-ec2/app-config.ec2.yaml
+          volumeMounts:
+            - name: ec2-runtime-config
+              mountPath: /config-ec2
+              readOnly: true
+      volumes:
+        - name: ec2-runtime-config
+          configMap:
+            name: backstage-ec2-runtime-config
