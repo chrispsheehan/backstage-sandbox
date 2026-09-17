@@ -4,8 +4,7 @@ CLUSTER_NAME := "platform-lab"
 ARGOCD_PORT_FORWARD_LOG := LAB_DIR / "/argocd-port-forward.log"
 BACKSTAGE_PORT_FORWARD_LOG := LAB_DIR / "/backstage-port-forward.log"
 
-# Scaffold the Backstage app into backstage/. Run once, or to recreate the scaffold.
-# Interactive: when prompted for a name, enter "backstage".
+# Scaffold the Backstage app into backstage/; when prompted for a name, enter "backstage".
 install:
     #!/usr/bin/env bash
     set -euo pipefail

@@ -1,7 +1,6 @@
 CI_PROJECT_DIR := source_directory() / "../.."
 
-# Run one Terragrunt operation for a dev AWS stack, for example:
-# just tg dev aws/platform_host plan
+# Run one Terragrunt operation for a selected environment and AWS stack.
 tg env module op:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -23,8 +22,7 @@ tg env module op:
       --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}/{{ module }}" \
       {{ op }}
 
-# Run a Terragrunt operation across the selected environment, optionally
-# excluding one directory from Terragrunt's dependency-aware run queue.
+# Run one Terragrunt operation across an environment, optionally excluding one directory.
 tg-all env op exclude_dir="":
     #!/usr/bin/env bash
     set -euo pipefail
