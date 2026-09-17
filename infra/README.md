@@ -144,6 +144,21 @@ and the
 
 ## Commands
 
+The public EC2 commands are deliberately prefixed so they cannot be confused
+with the local k3d workflow:
+
+| Command | Purpose |
+| --- | --- |
+| `just ec2-up` | Apply every dev Terragrunt stack in dependency order, follow EC2 bootstrap logs, and print the platform-host outputs. |
+| `just ec2-down` | Permanently remove the disposable EC2 runtime and database while retaining ECR and its images. |
+| `just ec2-purge` | Permanently remove the complete dev environment, including ECR and all stored images. |
+| `just ec2-push-image` | Build the current commit for ARM64, push it to ECR, and print the EC2 Kustomize image selection. |
+| `just ec2-logs` | Follow EC2 serial-console bootstrap output until bootstrap succeeds or fails. |
+| `just ec2-shell` | Wait for Systems Manager readiness and open a shell as `ec2-user`. |
+| `just infra-format` | Format all Terraform and Terragrunt files without applying infrastructure. |
+| `just tg <env> <module> <op>` | Run one low-level Terragrunt operation against one stack. |
+| `just tg-all <env> <op> [exclude_dir]` | Run one low-level Terragrunt operation across an environment's dependency graph. |
+
 Plan all dev stacks:
 
 ```bash

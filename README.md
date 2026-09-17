@@ -138,20 +138,24 @@ just local-argocd-repo-auth # Give local Argo CD credentials for a private repos
 just local-backstage-auth # Refresh the local Backstage runtime Secret from .env
 just local-build-backstage-image # Build and load the Backstage image into local k3d
 just local-deploy-backstage # Refresh the local Argo CD Backstage deployment without recreating k3d
+just local-ensure-argocd-port-forward # Ensure the local Argo CD UI is forwarded to port 8080
+just local-ensure-backstage-port-forward # Ensure the local Backstage UI is forwarded to port 7007
+just local-stop-argocd-port-forward # Stop only the local Argo CD port-forward
+just local-stop-backstage-port-forward # Stop only the local Backstage port-forward
 ```
 
 `just install` runs `npx @backstage/create-app@latest`, which scaffolds the app
 into `backstage/` and installs its dependencies; only run it once, or when
 recreating the scaffold from scratch. It enables Corepack and activates Yarn
 first if `yarn` isn't already on `PATH`, since `create-app` requires Yarn.
-`just local-up` and `just local-deploy-backstage` use Docker to build the runtime image,
-so they do not require a local Node toolchain after the scaffold already
-exists.
+`just local-up` and `just local-deploy-backstage` use Docker to build the
+runtime image, so they do not require a local Node toolchain after the
+scaffold already exists.
 
 If the scaffold manifests under `backstage/` drift from `backstage/yarn.lock`,
-`just local-build-backstage-image` detects the immutable-install failure, refreshes
-the lockfile in a disposable `node:24-trixie-slim` container, and retries the
-image build automatically.
+`just local-build-backstage-image` detects the immutable-install failure,
+refreshes the lockfile in a disposable `node:24-trixie-slim` container, and
+retries the image build automatically.
 
 The Backstage runtime image is currently large enough that `k3d`'s default
 tools-node import path may get killed during `docker save` on some local
@@ -164,8 +168,9 @@ process. `just local-setup` is infra-only; it does not deploy or refresh
 the Backstage application.
 
 Generated S3 site apps are registered automatically from their committed
-`apps/<name>/argocd/application.yaml` definitions after `just local-deploy-backstage`
-has been run against the branch that contains them.
+`apps/<name>/argocd/application.yaml` definitions after
+`just local-deploy-backstage` has been run against the branch that contains
+them.
 
 Some `k3d` installs write the cluster endpoint into kubeconfig as
 `https://0.0.0.0:<port>`. That wildcard bind address is not reachable as a

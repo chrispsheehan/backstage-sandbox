@@ -32,8 +32,8 @@ This repo uses a deliberately split ownership model:
 
 The shared `scripts/lab/bootstrap-cluster.sh` script creates the `k3d` cluster,
 installs Argo CD, and installs Crossplane core. The local Just recipe then
-applies the AWS Crossplane providers and local Argo CD configuration. `just
-local-up` builds/imports the Backstage image, configures
+applies the AWS Crossplane providers and local Argo CD configuration.
+`just local-up` builds/imports the Backstage image, configures
 repo access for Argo CD, and deploys the Backstage application into the
 cluster.
 
@@ -56,9 +56,9 @@ Generated child applications use Argo CD's resource finalizer, so removing an
 app directory also prunes the Kubernetes and Crossplane resources that the
 child application managed.
 
-Local private-repository authentication is handled by `just
-argocd-repo-auth`. The current unattended EC2 path assumes this repository is
-public; the future private-repository integration points are recorded in the
+Local private-repository authentication is handled by
+`just local-argocd-repo-auth`. The current unattended EC2 path assumes this
+repository is public; the future private-repository integration points are recorded in the
 [EC2 infrastructure notes](../infra/README.md#private-github-repository).
 
 The tracked Argo CD application templates are rendered to standard input.
