@@ -1,5 +1,6 @@
 import 'scripts/local/justfile'
 import 'scripts/ci/justfile'
+import 'scripts/build/justfile'
 
 default:
     @just --list

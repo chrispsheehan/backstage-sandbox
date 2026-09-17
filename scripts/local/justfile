@@ -386,32 +386,8 @@ build-backstage-image:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    mkdir -p "{{ LAB_DIR }}"
-    build_log="{{ LAB_DIR }}/build-backstage-image.log"
-
-    if ! docker build \
-      --tag backstage-lab:dev \
-      --target backstage \
-      --file "{{ PROJECT_DIR }}/Dockerfile" \
-      "{{ PROJECT_DIR }}" 2>&1 | tee "${build_log}"; then
-        if grep -q 'The lockfile would have been modified by this install' "${build_log}"; then
-            echo "Detected stale backstage/yarn.lock; refreshing it in Docker and retrying."
-            docker run --rm \
-              --user "$(id -u):$(id -g)" \
-              --volume "{{ PROJECT_DIR }}/backstage:/app" \
-              --workdir /app \
-              node:24-trixie-slim \
-              sh -lc 'corepack enable >/dev/null 2>&1 && yarn install'
-
-            docker build \
-              --tag backstage-lab:dev \
-              --target backstage \
-              --file "{{ PROJECT_DIR }}/Dockerfile" \
-              "{{ PROJECT_DIR }}"
-        else
-            exit 1
-        fi
-    fi
+    just --justfile "{{ PROJECT_DIR }}/justfile" \
+      _build-backstage-image backstage-lab:dev local
 
     CLUSTER_NAME="{{ CLUSTER_NAME }}" \
       "{{ PROJECT_DIR }}/scripts/lab/load-backstage-image.sh" backstage-lab:dev

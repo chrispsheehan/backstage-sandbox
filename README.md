@@ -50,6 +50,8 @@ Node 24 also works if you already have it on `PATH`.
   reset recipes while preserving their existing root-level command names.
 - `scripts/ci/justfile` owns the AWS/Terragrunt and ECR image-publishing
   recipes while preserving their root-level command names.
+- `scripts/build/justfile` owns the shared Backstage container build and
+  stale-lockfile recovery used by both local and ECR workflows.
 - `scripts/lab/bootstrap-cluster.sh` owns the cluster, Argo CD, and Crossplane
   core bootstrap shared by local and EC2 workflows.
 - `scripts/lab/install-crossplane-providers.sh`, `deploy-argocd-apps.sh`, and

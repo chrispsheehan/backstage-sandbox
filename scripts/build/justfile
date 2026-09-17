@@ -1,0 +1,85 @@
+BUILD_PROJECT_DIR := source_directory() / "../.."
+BUILD_LAB_DIR := BUILD_PROJECT_DIR / ".lab"
+
+# Check the Docker capabilities required by the selected build mode.
+_check-backstage-image-build mode:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    mode="{{ mode }}"
+    if [[ "${mode}" != "local" && "${mode}" != "push" ]]; then
+        echo "Unsupported Backstage image build mode: ${mode}" >&2
+        exit 1
+    fi
+
+    command -v docker >/dev/null 2>&1 || {
+        echo "Missing required binary: docker" >&2
+        exit 1
+    }
+    if ! docker info >/dev/null 2>&1; then
+        echo "Docker is installed, but its daemon is not running." >&2
+        exit 1
+    fi
+    if [[ "${mode}" == "push" ]] && ! docker buildx version >/dev/null 2>&1; then
+        echo "Docker Buildx is required to build the ARM64 image." >&2
+        exit 1
+    fi
+
+# Build Backstage for a local Docker image or push it with Buildx. This recipe
+# owns the shared stale-lockfile recovery used by both public workflows.
+_build-backstage-image image mode:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    image="{{ image }}"
+    mode="{{ mode }}"
+
+    just --justfile "{{ BUILD_PROJECT_DIR }}/justfile" \
+      _check-backstage-image-build "${mode}"
+
+    case "${mode}" in
+        local)
+            build_log="{{ BUILD_LAB_DIR }}/build-backstage-image.log"
+            ;;
+        push)
+            build_log="{{ BUILD_LAB_DIR }}/build-push-backstage-image.log"
+            ;;
+    esac
+
+    build_image() {
+        if [[ "${mode}" == "push" ]]; then
+            docker buildx build \
+              --platform linux/arm64 \
+              --target backstage \
+              --file "{{ BUILD_PROJECT_DIR }}/Dockerfile" \
+              --tag "${image}" \
+              --push \
+              "{{ BUILD_PROJECT_DIR }}"
+        else
+            docker build \
+              --tag "${image}" \
+              --target backstage \
+              --file "{{ BUILD_PROJECT_DIR }}/Dockerfile" \
+              "{{ BUILD_PROJECT_DIR }}"
+        fi
+    }
+
+    refresh_lockfile() {
+        echo "Detected stale backstage/yarn.lock; refreshing it in Docker and retrying."
+        docker run --rm \
+          --user "$(id -u):$(id -g)" \
+          --volume "{{ BUILD_PROJECT_DIR }}/backstage:/app" \
+          --workdir /app \
+          node:24-trixie-slim \
+          sh -lc 'corepack enable >/dev/null 2>&1 && yarn install'
+    }
+
+    mkdir -p "{{ BUILD_LAB_DIR }}"
+    if ! build_image 2>&1 | tee "${build_log}"; then
+        if ! grep -q 'The lockfile would have been modified by this install' "${build_log}"; then
+            exit 1
+        fi
+
+        refresh_lockfile
+        build_image
+    fi
