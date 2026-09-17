@@ -13,7 +13,7 @@ Contents:
 Prerequisites:
 
 - `just bootstrap`
-- `just crossplane-aws-auth ~/.aws/credentials`
+- `just local-crossplane-aws-auth ~/.aws/credentials`
 - install the shared `provider-aws-s3` package before applying these manifests
 
 Suggested next steps after the PR merges:

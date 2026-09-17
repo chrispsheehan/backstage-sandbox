@@ -32,7 +32,7 @@ _bootstrap-cluster:
         set +a
     fi
     if [[ -n "${AUTH_GITHUB_CLIENT_ID:-}" && -n "${AUTH_GITHUB_CLIENT_SECRET:-}" ]]; then
-        just argocd-github-auth
+        just local-argocd-github-auth
     else
         echo "AUTH_GITHUB_CLIENT_ID / AUTH_GITHUB_CLIENT_SECRET not set; skipping Argo CD GitHub SSO."
     fi
@@ -46,26 +46,26 @@ _bootstrap-cluster:
 
     "{{ PROJECT_DIR }}/scripts/lab/install-crossplane-providers.sh"
 
-    just ensure-argocd-port-forward
+    just local-ensure-argocd-port-forward
 
-# Root `just start` delegates to this local workflow implementation.
+# Root `just local-up` delegates to this local workflow implementation.
 _start:
     #!/usr/bin/env bash
     set -euo pipefail
 
     just _bootstrap-cluster
-    just crossplane-aws-auth ~/.aws/credentials
-    just backstage-cluster-auth
-    just argocd-repo-auth
-    just build-backstage-image
-    just deploy-backstage
-    just ensure-argocd-port-forward
-    just ensure-backstage-port-forward
+    just local-crossplane-aws-auth ~/.aws/credentials
+    just local-backstage-auth
+    just local-argocd-repo-auth
+    just local-build-backstage-image
+    just local-deploy-backstage
+    just local-ensure-argocd-port-forward
+    just local-ensure-backstage-port-forward
 
     echo "Argo CD: http://localhost:8080"
     echo "Backstage: http://localhost:7007"
 
-# Root `just shell` delegates to this local SSM workflow implementation.
+# Root `just ec2-shell` delegates to this SSM workflow implementation.
 _shell:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -98,7 +98,7 @@ _shell:
     echo "Timed out waiting for ${instance_id} to register with Systems Manager." >&2
     exit 1
 
-# Root `just bootstrap-logs` delegates to this EC2 console-output follower.
+# Root `just ec2-logs` delegates to this EC2 console-output follower.
 _bootstrap-logs:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -174,30 +174,32 @@ _bootstrap-logs:
         sleep 5
     done
 
-stop:
+# Stop the tracked local Argo CD and Backstage port-forwards without stopping k3d.
+local-stop-forwards:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    just stop-argocd-port-forward
-    just stop-backstage-port-forward
+    just local-stop-argocd-port-forward
+    just local-stop-backstage-port-forward
 
 # Stop the local k3d cluster without deleting it.
-stop-cluster:
+local-stop:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    just stop
+    just local-stop-forwards
     k3d cluster stop {{ CLUSTER_NAME }}
 
-clean:
+# Stop local port-forwards and remove the local Backstage image while retaining k3d.
+local-clean:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    just stop
+    just local-stop-forwards
     docker image rm backstage-lab:dev >/dev/null 2>&1 || true
 
 # Copy an AWS credentials file verbatim into Crossplane and apply the default cluster-wide AWS config.
-crossplane-aws-auth credentials_file:
+local-crossplane-aws-auth credentials_file:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -233,7 +235,7 @@ crossplane-aws-auth credentials_file:
     echo "Updated Secret ${secret_namespace}/${secret_name} and ClusterProviderConfig/default."
 
 # Patch the in-cluster Backstage secret from repo root .env.
-backstage-cluster-auth:
+local-backstage-auth:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -262,7 +264,7 @@ backstage-cluster-auth:
     echo "Updated Secret backstage/backstage-secrets."
 
 # Configure local Argo CD GitHub SSO from repo root .env.
-argocd-github-auth:
+local-argocd-github-auth:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -309,7 +311,7 @@ argocd-github-auth:
     echo "Configured Argo CD GitHub SSO on http://localhost:8080 with local-lab admin RBAC."
 
 # Configure Argo CD repository credentials for this repo.
-argocd-repo-auth:
+local-argocd-repo-auth:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -346,7 +348,7 @@ argocd-repo-auth:
     echo "Configured Argo CD repository credentials for ${repo_https_url}."
 
 # Apply or refresh the Argo CD Backstage Application and wait for the deployment.
-deploy-backstage:
+local-deploy-backstage:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -356,7 +358,7 @@ deploy-backstage:
         set +a
     fi
     if [[ -n "${AUTH_GITHUB_CLIENT_ID:-}" && -n "${AUTH_GITHUB_CLIENT_SECRET:-}" ]]; then
-        just backstage-cluster-auth
+        just local-backstage-auth
     else
         echo "AUTH_GITHUB_CLIENT_ID / AUTH_GITHUB_CLIENT_SECRET not set; keeping existing backstage/backstage-secrets values."
     fi
@@ -382,7 +384,8 @@ deploy-backstage:
 
     "{{ PROJECT_DIR }}/scripts/lab/deploy-argocd-apps.sh" "${repo_https_url}" "${branch_name}"
 
-build-backstage-image:
+# Build the local Backstage image and load it directly into the k3d cluster.
+local-build-backstage-image:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -394,12 +397,13 @@ build-backstage-image:
 
     echo "Built and loaded backstage-lab:dev into k3d."
 
-ensure-argocd-port-forward:
+# Start the local Argo CD port-forward unless a healthy one already exists.
+local-ensure-argocd-port-forward:
     #!/usr/bin/env bash
     set -euo pipefail
 
     if [[ -f "{{ ARGOCD_PORT_FORWARD_LOG }}" ]] && grep -q 'error: lost connection to pod' "{{ ARGOCD_PORT_FORWARD_LOG }}"; then
-        just stop-argocd-port-forward
+        just local-stop-argocd-port-forward
     fi
 
     if pgrep -f 'kubectl --context k3d-platform-lab -n argocd port-forward svc/argocd-server 8080:80' >/dev/null 2>&1; then
@@ -407,19 +411,20 @@ ensure-argocd-port-forward:
             exit 0
         fi
 
-        just stop-argocd-port-forward
+        just local-stop-argocd-port-forward
     fi
 
     mkdir -p "{{ LAB_DIR }}"
     nohup kubectl --context k3d-platform-lab -n argocd port-forward svc/argocd-server 8080:80 >"{{ ARGOCD_PORT_FORWARD_LOG }}" 2>&1 &
     sleep 1
 
-ensure-backstage-port-forward:
+# Start the local Backstage port-forward unless a healthy one already exists.
+local-ensure-backstage-port-forward:
     #!/usr/bin/env bash
     set -euo pipefail
 
     if [[ -f "{{ BACKSTAGE_PORT_FORWARD_LOG }}" ]] && grep -q 'error: lost connection to pod' "{{ BACKSTAGE_PORT_FORWARD_LOG }}"; then
-        just stop-backstage-port-forward
+        just local-stop-backstage-port-forward
     fi
 
     if pgrep -f 'kubectl --context k3d-platform-lab -n backstage port-forward svc/backstage 7007:7007' >/dev/null 2>&1; then
@@ -427,30 +432,33 @@ ensure-backstage-port-forward:
             exit 0
         fi
 
-        just stop-backstage-port-forward
+        just local-stop-backstage-port-forward
     fi
 
     mkdir -p "{{ LAB_DIR }}"
     nohup kubectl --context k3d-platform-lab -n backstage port-forward svc/backstage 7007:7007 >"{{ BACKSTAGE_PORT_FORWARD_LOG }}" 2>&1 &
     sleep 1
 
-stop-argocd-port-forward:
+# Stop only the tracked local Argo CD port-forward.
+local-stop-argocd-port-forward:
     #!/usr/bin/env bash
     set -euo pipefail
 
     pkill -f 'kubectl --context k3d-platform-lab -n argocd port-forward svc/argocd-server 8080:80' >/dev/null 2>&1 || true
 
-stop-backstage-port-forward:
+# Stop only the tracked local Backstage port-forward.
+local-stop-backstage-port-forward:
     #!/usr/bin/env bash
     set -euo pipefail
 
     pkill -f 'kubectl --context k3d-platform-lab -n backstage port-forward svc/backstage 7007:7007' >/dev/null 2>&1 || true
 
-reset:
+# Internal implementation used by the root local-down recipe.
+_reset:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    just stop
+    just local-stop-forwards
     k3d cluster delete {{ CLUSTER_NAME }} >/dev/null 2>&1 || true
     docker image rm backstage-lab:dev >/dev/null 2>&1 || true
     rm -rf "{{ LAB_DIR }}"

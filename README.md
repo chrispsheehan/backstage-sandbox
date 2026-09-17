@@ -47,10 +47,10 @@ Node 24 also works if you already have it on `PATH`.
 - [k8s/README.md](k8s/README.md) explains the cluster bootstrap order, Argo CD ownership, and local access pattern.
 - [infra/README.md](infra/README.md) explains the optional dev EC2 workstation.
 - `justfile` exposes the root commands and imports the local and CI recipes.
-- `scripts/local/justfile` owns the local k3d, auth, image-build, deploy, and
-  reset recipes while preserving their existing root-level command names.
-- `scripts/ci/justfile` owns the AWS/Terragrunt and ECR image-publishing
-  recipes while preserving their root-level command names.
+- `scripts/local/justfile` owns the `local-*` k3d, auth, image-build, deploy,
+  and cleanup recipes.
+- `scripts/ci/justfile` owns the AWS/Terragrunt primitives and the ECR
+  image-publishing implementation exposed by the root `ec2-*` recipes.
 - `scripts/build/justfile` owns the shared Backstage container build and
   stale-lockfile recovery used by both local and ECR workflows.
 - `scripts/aws/platform-bootstrap.sh` owns the configured EC2 host, platform,
@@ -76,19 +76,19 @@ enabled so its providers use the attached instance role; see
 
 ## Backstage Runtime
 
-`just start` is the one-command local setup path: it bootstraps `k3d`, Argo CD,
+`just local-up` is the one-command local setup path: it bootstraps `k3d`, Argo CD,
 and Crossplane, wires local GitHub auth, builds the Backstage image, imports it
 into `k3d`, and deploys Backstage into the cluster through Argo CD.
-`just setup` is the infra-only path. Create `.env` from
-`.example.env` before running `just start`.
+`just local-setup` is the infra-only path. Create `.env` from
+`.example.env` before running `just local-up`.
 
-`just deploy-backstage` also applies an Argo CD `ApplicationSet` that scans
+`just local-deploy-backstage` also applies an Argo CD `ApplicationSet` that scans
 committed `apps/*/argocd` definitions on the current Git branch and
 auto-registers generated site apps after their pull requests merge.
 
 Backstage GitHub OAuth credentials are runtime-managed from repo root `.env`,
-not committed as a GitOps-managed Kubernetes `Secret`. `just start` and
-`just deploy-backstage` refresh `Secret/backstage/backstage-secrets` before the
+not committed as a GitOps-managed Kubernetes `Secret`. `just local-up` and
+`just local-deploy-backstage` refresh `Secret/backstage/backstage-secrets` before the
 Backstage rollout when `AUTH_GITHUB_CLIENT_ID` and
 `AUTH_GITHUB_CLIENT_SECRET` are set.
 
@@ -126,28 +126,30 @@ unless you also plan to change the Backstage auth configuration.
 
 ```bash
 just install  # scaffold backstage/ and install dependencies (run once)
-just setup    # Bootstrap local k3d, Argo CD, and Crossplane without Backstage
-just local    # Delete the local cluster, port-forwards, lab state, and image
-just start    # Bootstrap cluster, deploy Backstage through Argo CD, and port-forward the UIs
-just crossplane-aws-auth ~/.aws/credentials # Copy an AWS credentials file into Crossplane
-just argocd-github-auth # Wire local Argo CD Dex to the GitHub OAuth app in .env
-just argocd-repo-auth # Give Argo CD credentials to sync this repo when it is private
-just deploy-backstage # Rebuild/sync the Backstage deployment workflow without recreating the cluster
-just stop     # stop tracked port-forwards only
-just stop-cluster # stop the local k3d cluster without deleting it
-just clean    # stop port-forwards and remove the local Backstage image
+just local-setup # Bootstrap local k3d, Argo CD, Crossplane, and integrations without Backstage
+just local-up    # Run the complete local workflow, deploy Backstage, and port-forward both UIs
+just local-down  # Delete the local cluster, port-forwards, lab state, and image
+just local-stop  # Stop the local k3d cluster without deleting it
+just local-stop-forwards # Stop only the tracked local UI port-forwards
+just local-clean # Stop port-forwards and remove the local Backstage image while retaining k3d
+just local-crossplane-aws-auth ~/.aws/credentials # Copy local AWS credentials into Crossplane
+just local-argocd-github-auth # Configure local Argo CD GitHub SSO from .env
+just local-argocd-repo-auth # Give local Argo CD credentials for a private repository
+just local-backstage-auth # Refresh the local Backstage runtime Secret from .env
+just local-build-backstage-image # Build and load the Backstage image into local k3d
+just local-deploy-backstage # Refresh the local Argo CD Backstage deployment without recreating k3d
 ```
 
 `just install` runs `npx @backstage/create-app@latest`, which scaffolds the app
 into `backstage/` and installs its dependencies; only run it once, or when
 recreating the scaffold from scratch. It enables Corepack and activates Yarn
 first if `yarn` isn't already on `PATH`, since `create-app` requires Yarn.
-`just start` and `just deploy-backstage` use Docker to build the runtime image,
+`just local-up` and `just local-deploy-backstage` use Docker to build the runtime image,
 so they do not require a local Node toolchain after the scaffold already
 exists.
 
 If the scaffold manifests under `backstage/` drift from `backstage/yarn.lock`,
-`just build-backstage-image` detects the immutable-install failure, refreshes
+`just local-build-backstage-image` detects the immutable-install failure, refreshes
 the lockfile in a disposable `node:24-trixie-slim` container, and retries the
 image build automatically.
 
@@ -156,22 +158,22 @@ tools-node import path may get killed during `docker save` on some local
 machines. This repo uses `k3d image import --mode direct` to avoid that extra
 tarball hop.
 
-`just start` is the normal loop now. Backstage is served from the cluster on
+`just local-up` is the normal loop now. Backstage is served from the cluster on
 `http://localhost:7007` via `kubectl port-forward`, not from a local source
-process. `just setup` is infra-only; it does not deploy or refresh
+process. `just local-setup` is infra-only; it does not deploy or refresh
 the Backstage application.
 
 Generated S3 site apps are registered automatically from their committed
-`apps/<name>/argocd/application.yaml` definitions after `just deploy-backstage`
+`apps/<name>/argocd/application.yaml` definitions after `just local-deploy-backstage`
 has been run against the branch that contains them.
 
 Some `k3d` installs write the cluster endpoint into kubeconfig as
 `https://0.0.0.0:<port>`. That wildcard bind address is not reachable as a
-client target, so `just setup` normalizes this repo's
+client target, so `just local-setup` normalizes this repo's
 `k3d-platform-lab` kubeconfig entry to `https://127.0.0.1:<port>` before it
 runs `kubectl`.
 
-If the `platform-lab` cluster already exists but is stopped, `just setup`
+If the `platform-lab` cluster already exists but is stopped, `just local-setup`
 starts it instead of assuming the API server is already
 reachable.
 
@@ -189,7 +191,7 @@ Prerequisites: Docker, `kubectl`, `helm`, `k3d` — see
 Then run:
 
 ```bash
-just start
+just local-up
 ```
 
 After it completes, verify that both Crossplane AWS providers are installed
@@ -243,7 +245,7 @@ service-scoped provider. The family provider supplies shared AWS
 repo's generated static-site templates.
 
 When `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` are set in `.env`,
-`just start` and `just setup` configure Argo CD Dex for GitHub
+`just local-up` and `just local-setup` configure Argo CD Dex for GitHub
 sign-in on `http://localhost:8080` using the same OAuth app as Backstage. The
 repo-owned local RBAC override grants `role:admin` to authenticated users in
 this disposable lab.
@@ -257,7 +259,7 @@ To let Crossplane use the same AWS identity as your local CLI, copy a shared
 credentials file into a Kubernetes `Secret` and a cluster-wide provider config:
 
 ```bash
-just crossplane-aws-auth ~/.aws/credentials
+just local-crossplane-aws-auth ~/.aws/credentials
 ```
 
 The S3 website scaffolder derives bucket names as
@@ -273,18 +275,18 @@ This repo includes a matching `User/default/chrispsheehan` catalog entity so
 the default GitHub sign-in resolver succeeds in the deployed app.
 
 If this repo is private, Argo CD needs repository credentials to sync it.
-`just start` handles that automatically through `gh auth token`.
+`just local-up` handles that automatically through `gh auth token`.
 
 ## Reset
 
 To tear the entire lab down and remove local lab state:
 
 ```bash
-just reset
+just local-down
 ```
 
 To stop the cluster without deleting it:
 
 ```bash
-just stop-cluster
+just local-stop
 ```

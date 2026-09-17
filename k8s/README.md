@@ -27,13 +27,13 @@ This repo uses a deliberately split ownership model:
 
 ## Bootstrap Order
 
-1. `just setup`
-2. Run `just start` to deploy Backstage through Argo CD, or open the Argo CD UI on `http://localhost:8080` after infra bootstrap.
+1. `just local-setup`
+2. Run `just local-up` to deploy Backstage through Argo CD, or open the Argo CD UI on `http://localhost:8080` after infra bootstrap.
 
 The shared `scripts/lab/bootstrap-cluster.sh` script creates the `k3d` cluster,
 installs Argo CD, and installs Crossplane core. The local Just recipe then
 applies the AWS Crossplane providers and local Argo CD configuration. `just
-start` builds/imports the Backstage image, configures
+local-up` builds/imports the Backstage image, configures
 repo access for Argo CD, and deploys the Backstage application into the
 cluster.
 
@@ -47,7 +47,7 @@ Crossplane bootstrap includes both the AWS family provider and the AWS S3
 provider, so generated S3 site apps can reconcile without additional manual
 provider installation after merge.
 
-`just deploy-backstage` also renders and applies the repo-owned Argo CD
+`just local-deploy-backstage` also renders and applies the repo-owned Argo CD
 `ApplicationSet` that scans `apps/*/argocd` on the current Git branch and
 applies those committed child `Application` manifests into the `argocd`
 namespace. Its Git generator polls once per minute, so later committed
@@ -77,7 +77,7 @@ when used as a client endpoint.
 
 The same bootstrap path also starts an existing stopped `platform-lab` cluster
 before applying manifests, so rerunning infra bootstrap works after
-`just stop-cluster`.
+`just local-stop`.
 
 If repo root `.env` contains `AUTH_GITHUB_CLIENT_ID` and
 `AUTH_GITHUB_CLIENT_SECRET`, bootstrap also configures Argo CD Dex to use the
@@ -87,8 +87,8 @@ same GitHub OAuth app as local Backstage. That app must include callback URL
 Backstage's own GitHub OAuth credentials are not owned by the Argo CD
 application manifests. They are patched into
 `Secret/backstage/backstage-secrets` from the repo root `.env` by
-`just backstage-cluster-auth`, which is also invoked by `just start` and
-`just deploy-backstage` when those variables are set.
+`just local-backstage-auth`, which is also invoked by `just local-up` and
+`just local-deploy-backstage` when those variables are set.
 
 ## Access Pattern
 
@@ -97,7 +97,7 @@ The local lab intentionally avoids ingress, TLS termination, and external DNS.
 Use port-forwarding:
 
 ```bash
-just start
+just local-up
 ```
 
 Argo CD is there for GitOps inspection, and Backstage is exposed locally via a
@@ -137,15 +137,15 @@ Argo CD local auth is configured for convenience rather than strict isolation:
 You can reapply the GitHub SSO wiring without rebuilding the cluster:
 
 ```bash
-just argocd-github-auth
+just local-argocd-github-auth
 ```
 
 You can reapply repo auth and the Backstage application deployment without
 recreating the cluster:
 
 ```bash
-just argocd-repo-auth
-just deploy-backstage
+just local-argocd-repo-auth
+just local-deploy-backstage
 ```
 
 After that `ApplicationSet` is in place, merging a generated site PR into the

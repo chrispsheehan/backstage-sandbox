@@ -53,7 +53,7 @@ tg-all env op exclude_dir="":
           run --all -- {{ op }}
     fi
 
-# Root `just push-image` delegates to this CI workflow implementation.
+# Root `just ec2-push-image` delegates to this CI workflow implementation.
 _push-image version:
     #!/usr/bin/env bash
     set -euo pipefail

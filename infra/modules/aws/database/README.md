@@ -17,8 +17,8 @@ only the database security group supplied by the `security` stack. That group
 accepts TCP port 5432 exclusively from the platform EC2 security group.
 
 This database is intentionally ephemeral. Automated backups, final snapshots,
-Multi-AZ, and deletion protection are disabled. Both `just destroy` and
-`just destroy-all` delete it permanently; only ECR is retained by the normal
+Multi-AZ, and deletion protection are disabled. Both `just ec2-down` and
+`just ec2-purge` delete it permanently; only ECR is retained by the normal
 destroy path.
 
 Terraform generates the database password and owns five `SecureString`

@@ -51,10 +51,10 @@ GitHub-side setup for this repo:
 7. In `k8s/base/backstage/`, do not restore a GitOps-managed
    `backstage-secret.yaml` with placeholder GitHub OAuth credentials. The
    cluster secret `backstage/backstage-secrets` is runtime-managed from repo
-   root `.env` by `just backstage-cluster-auth`, and `just deploy-backstage`
+   root `.env` by `just local-backstage-auth`, and `just local-deploy-backstage`
    should refresh it when those variables are set.
 8. In `backstage/README.md`, keep the ignored nested README aligned with the
-   cluster-only runtime model: `just start` deploys Backstage through Argo CD
+   cluster-only runtime model: `just local-up` deploys Backstage through Argo CD
    and Backstage is reached on `http://localhost:7007` through port-forwarding.
 9. In `config/examples/org.yaml`, keep a `User` entity whose `metadata.name`
    matches the GitHub username that will sign in locally. The current repo

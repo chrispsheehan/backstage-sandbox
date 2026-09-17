@@ -28,7 +28,7 @@ back the earlier demo applications and provider setup.
 
 ## Verify Provider Installation
 
-After `just start` completes, check that both provider packages installed and
+After `just local-up` completes, check that both provider packages installed and
 their controllers became healthy:
 
 ```bash
@@ -61,7 +61,7 @@ Use the root recipe below to copy your current local AWS CLI credentials into
 Crossplane:
 
 ```bash
-just crossplane-aws-auth ~/.aws/credentials
+just local-crossplane-aws-auth ~/.aws/credentials
 ```
 
 That recipe:

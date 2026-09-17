@@ -36,7 +36,7 @@ true`, stages the repo's `config/`, `crossplane/`, `k8s/`, and shared
 
 User data runs the shared lab script as `ec2-user`, which owns the generated
 kubeconfig and has Docker access. The script can be rerun manually as that
-account. A module-owned Session document lets `just shell` start directly
+account. A module-owned Session document lets `just ec2-shell` start directly
 as `ec2-user` without changing the account-wide Session Manager preferences.
 User data keeps the SSM agent stopped during bootstrap and restarts it only
 after the cluster and core controllers are ready, so SSM `Online` is also the

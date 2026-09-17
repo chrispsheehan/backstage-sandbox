@@ -4,7 +4,7 @@ set -euo pipefail
 exec > >(tee /var/log/platform-bootstrap.log | logger -t platform-bootstrap -s 2>/dev/console) 2>&1
 
 # Keep informational CNI bridge messages in the kernel log without flooding
-# the EC2 serial console followed by `just bootstrap-logs`.
+# the EC2 serial console followed by `just ec2-logs`.
 dmesg --console-level warn
 
 AWS_REGION="${aws_region}"

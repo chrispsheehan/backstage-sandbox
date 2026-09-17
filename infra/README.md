@@ -7,7 +7,7 @@ environment.
 
 ## Shape
 
-The `just deploy` deployment creates:
+The `just ec2-up` deployment creates:
 
 - a private ECR repository retained for later image work
 - a separate EC2 role and instance profile with SSM, bootstrap-download, ECR
@@ -153,13 +153,13 @@ just tg-all dev plan
 Apply all dev stacks in dependency order:
 
 ```bash
-just deploy
+just ec2-up
 ```
 
 For a new environment, publish the image and commit the printed EC2 overlay
-change before running `just deploy`. The normal `just destroy` retains ECR and
+change before running `just ec2-up`. The normal `just ec2-down` retains ECR and
 its images so the selected image remains available when recreating the host.
-`just destroy-all` removes ECR too, so repeat `just push-image` after that full
+`just ec2-purge` removes ECR too, so repeat `just ec2-push-image` after that full
 teardown.
 
 The Terragrunt recipes load repo-root `.env` before running. The platform-host
@@ -176,7 +176,7 @@ through `just`, export the two OAuth `TF_VAR_` values yourself.
 Terragrunt can apply ECR and the security group in parallel, creates RDS after
 the security group, then applies the platform host after all of its
 dependencies succeed. After the apply completes,
-`just deploy` follows the EC2 user-data console output and returns when
+`just ec2-up` follows the EC2 user-data console output and returns when
 bootstrap reports success or failure. After a successful bootstrap it prints
 the `platform_host` outputs, including the Backstage and Argo CD URLs. Destroy
 uses the reverse order.
@@ -184,7 +184,7 @@ uses the reverse order.
 Apply the ECR stack, then build and push a Backstage image separately:
 
 ```bash
-just push-image
+just ec2-push-image
 ```
 
 The required version must be a 7-40 character lowercase Git hash. This command
@@ -196,7 +196,7 @@ and its destination file,
 overlay change is the separate GitOps step that selects the new image for
 deployment.
 
-After that image selection is committed and pushed, `just deploy` installs an
+After that image selection is committed and pushed, `just ec2-up` installs an
 Argo CD `Application` that targets the EC2 overlay. User data creates the
 runtime-only Backstage, RDS, and ECR pull Secrets before Argo CD begins the
 rollout. The EC2 overlay does not deploy the local Postgres pod.
@@ -208,8 +208,8 @@ Get the public URLs or open a host shell:
 
 ```bash
 just tg dev aws/platform_host output
-just bootstrap-logs
-just shell
+just ec2-logs
+just ec2-shell
 ```
 
 The `platform_host` output includes `https://backstage.chrispsheehan.com` and
@@ -244,13 +244,13 @@ Sign in at the printed `argocd_url` through GitHub. If your public IP changes,
 reapply the security stack so its current-IP data source refreshes the allowed
 `/32`.
 
-`just bootstrap-logs` polls EC2's latest serial-console output, prints newly
+`just ec2-logs` polls EC2's latest serial-console output, prints newly
 available user-data bytes, and returns when bootstrap reports success or
 failure. If AWS rewrites or truncates the console buffer rather than appending
 to it, the follower prints the latest 200 lines so the terminal failure remains
 visible. It emits a waiting message after 30 seconds without new output because
 console output can arrive in bursts rather than immediately. This path works
-while the SSM agent is deliberately offline during bootstrap; `just shell`
+while the SSM agent is deliberately offline during bootstrap; `just ec2-shell`
 becomes available only after bootstrap completes or fails.
 
 User data limits kernel serial-console output to warnings and errors. Routine
@@ -265,7 +265,7 @@ and the latest 200 lines of current and previous logs from every pod in the
 `backstage` namespace. The rollout still returns a failure, and the SSM agent is
 then restored for interactive follow-up.
 
-Terraform creates a lab-specific Session document, and `just shell` uses it
+Terraform creates a lab-specific Session document, and `just ec2-shell` uses it
 to start directly as `ec2-user`. This gives the session the correct Docker
 group membership and k3d kubeconfig. Its shell profile adds `/usr/local/bin` to
 `PATH`, waits for cloud-init, and starts in `/opt/backstage-sandbox`. A session
@@ -276,7 +276,7 @@ unrelated instances.
 EC2's native `running` state does not include SSM registration or user-data
 completion. User data stops the SSM agent before bootstrap and normally
 restarts it after the bootstrap script completes. It also restarts the agent on
-bootstrap failure so the host remains accessible for diagnosis. `just shell`
+bootstrap failure so the host remains accessible for diagnosis. `just ec2-shell`
 waits for the instance to report `Online` to Systems Manager, and the session
 profile waits for cloud-init before returning the prompt. If bootstrap failed,
 inspect `/var/log/platform-bootstrap.log` after connecting.
@@ -303,7 +303,7 @@ The copied working set is:
 ```
 
 The bootstrap command runs host installation as root and the Kubernetes phases
-as `ec2-user`. A session opened with `just shell` starts as `ec2-user`, so the
+as `ec2-user`. A session opened with `just ec2-shell` starts as `ec2-user`, so the
 lab is immediately available:
 
 ```bash
@@ -355,7 +355,7 @@ maintaining a list of modules to destroy. It uses non-interactive mode and
 automatic approval, so it does not prompt for confirmation:
 
 ```bash
-just destroy
+just ec2-down
 ```
 
 Remove the complete dev environment, including ECR and all of its images. This
@@ -363,7 +363,7 @@ recipe uses the same environment-wide destroy without the ECR exclusion and is
 also non-interactive:
 
 ```bash
-just destroy-all
+just ec2-purge
 ```
 
 ## Cost And Security Boundaries
@@ -394,7 +394,7 @@ IPv4 addresses, RDS, and the 30 GiB disk continue to accrue charges. `just
 destroy` removes the host, disk, ALB, ACM certificate, platform DNS and
 validation records, bootstrap object, and force-destroy bootstrap bucket, and
 permanently deletes RDS without a final snapshot; it retains ECR and its
-images. `just destroy-all` also removes ECR. The existing hosted zone and shared
+images. `just ec2-purge` also removes ECR. The existing hosted zone and shared
 Terragrunt state bucket remain in both cases.
 
 Sources: [AWS EC2 On-Demand pricing](https://aws.amazon.com/ec2/pricing/on-demand/),
@@ -410,7 +410,7 @@ database runtime parameters, and manage S3 buckets ending in
 `-<account-id>-<region>` for generated static sites, in addition to the
 AWS-managed permissions needed for Session Manager. The Backstage parameters
 are owned by the platform-host stack and the database parameters by the
-database stack, so `just destroy` removes both sets and the next `just deploy`
+database stack, so `just ec2-down` removes both sets and the next `just ec2-up`
 recreates them. The two GitHub OAuth values come from `.env`; the backend and
 database values do not. Both parameter paths include a Terraform-owned random
 ID, so an earlier parameter still finishing deletion cannot collide with the
