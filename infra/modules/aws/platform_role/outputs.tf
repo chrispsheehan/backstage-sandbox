@@ -1,11 +1,4 @@
 output "instance_profile_name" {
-  value = aws_iam_instance_profile.this.name
-}
-
-output "role_arn" {
-  value = aws_iam_role.this.arn
-}
-
-output "role_name" {
-  value = aws_iam_role.this.name
+  description = "IAM instance profile attached to the platform EC2 host."
+  value       = aws_iam_instance_profile.this.name
 }

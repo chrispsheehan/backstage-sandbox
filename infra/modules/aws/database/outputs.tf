@@ -1,19 +1,3 @@
-output "address" {
-  value = aws_db_instance.this.address
-}
-
-output "database_name" {
-  value = local.database_name
-}
-
-output "port" {
-  value = local.database_port
-}
-
-output "username" {
-  value = local.database_username
-}
-
 output "parameter_prefix" {
   description = "Randomized SSM path containing the database connection settings."
   value       = local.database_parameter_prefix

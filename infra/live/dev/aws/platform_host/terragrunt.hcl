@@ -29,7 +29,6 @@ dependency "platform_role" {
 
   mock_outputs = {
     instance_profile_name = "backstage-sandbox-dev-ec2"
-    role_name             = "backstage-sandbox-dev-ec2"
   }
   mock_outputs_allowed_terraform_commands = ["validate", "plan", "destroy"]
 }

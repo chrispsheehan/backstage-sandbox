@@ -1,13 +1,16 @@
 variable "aws_region" {
-  type = string
+  type        = string
+  description = "AWS region in which the development platform runs."
 }
 
 variable "aws_account_id" {
-  type = string
+  type        = string
+  description = "AWS account that owns the development platform resources."
 }
 
 variable "base_name" {
-  type = string
+  type        = string
+  description = "Shared name prefix for disposable development resources."
 }
 
 variable "bootstrap_script" {
@@ -27,7 +30,8 @@ variable "git_revision" {
 }
 
 variable "vpc_name" {
-  type = string
+  type        = string
+  description = "Exact Name tag of the existing VPC."
 }
 
 variable "hosted_zone_name" {
@@ -36,17 +40,20 @@ variable "hosted_zone_name" {
 }
 
 variable "instance_type" {
-  type    = string
-  default = "t4g.medium"
+  type        = string
+  description = "ARM64 EC2 instance type used for the single-node platform host."
+  default     = "t4g.medium"
 }
 
 variable "root_volume_size" {
-  type    = number
-  default = 30
+  type        = number
+  description = "Size in GiB of the encrypted gp3 EC2 root volume."
+  default     = 30
 }
 
 variable "platform_security_group_id" {
-  type = string
+  type        = string
+  description = "Security group allowing application traffic only from the platform ALB."
 }
 
 variable "load_balancer_security_group_id" {
@@ -55,7 +62,8 @@ variable "load_balancer_security_group_id" {
 }
 
 variable "instance_profile_name" {
-  type = string
+  type        = string
+  description = "IAM instance profile attached to the platform host."
 }
 
 variable "ecr_repository_url" {

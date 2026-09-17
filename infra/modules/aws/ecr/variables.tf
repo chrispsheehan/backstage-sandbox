@@ -1,14 +1,16 @@
 variable "base_name" {
-  type = string
+  type        = string
+  description = "Name of the development Backstage image repository."
 }
 
 variable "force_delete" {
-  type    = bool
-  default = true
+  type        = bool
+  description = "Whether Terraform may delete the repository while it contains images."
+  default     = true
 }
 
 variable "image_expiration_days" {
-  type    = number
-  default = 30
+  type        = number
+  description = "Age in days after which development images expire."
+  default     = 30
 }
-

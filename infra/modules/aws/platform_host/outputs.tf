@@ -1,13 +1,16 @@
 output "instance_id" {
-  value = aws_instance.this.id
+  description = "EC2 instance hosting the disposable k3d platform."
+  value       = aws_instance.this.id
 }
 
 output "session_document_name" {
-  value = aws_ssm_document.run_shell.name
+  description = "Session Manager document used by the root shell recipe."
+  value       = aws_ssm_document.run_shell.name
 }
 
 output "bootstrap_bucket_name" {
-  value = aws_s3_bucket.bootstrap.id
+  description = "Private S3 bucket containing the platform bootstrap archive."
+  value       = aws_s3_bucket.bootstrap.id
 }
 
 output "public_ip" {
@@ -16,15 +19,18 @@ output "public_ip" {
 }
 
 output "load_balancer_dns_name" {
-  value = aws_lb.platform.dns_name
+  description = "AWS-generated DNS name of the public Application Load Balancer."
+  value       = aws_lb.platform.dns_name
 }
 
 output "backstage_url" {
-  value = local.backstage_url
+  description = "Public HTTPS URL for Backstage."
+  value       = local.backstage_url
 }
 
 output "argocd_url" {
-  value = local.argocd_url
+  description = "Public HTTPS URL for Argo CD."
+  value       = local.argocd_url
 }
 
 output "backstage_parameter_prefix" {
