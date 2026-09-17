@@ -9,6 +9,7 @@ locals {
     fileset(local.repo_root, "crossplane/providers/**"),
     fileset(local.repo_root, "crossplane/providerconfigs/ec2/**"),
     fileset(local.repo_root, "k8s/**"),
+    fileset(local.repo_root, "scripts/aws/**"),
     fileset(local.repo_root, "scripts/lab/**"),
   )
 }
@@ -57,7 +58,6 @@ terraform {
 }
 
 inputs = {
-  bootstrap_script                = file("${local.repo_root}/scripts/aws/bootstrap-platform-host.sh")
   ecr_repository_url              = dependency.ecr.outputs.repository_url
   hosted_zone_name                = "chrispsheehan.com"
   instance_profile_name           = dependency.platform_role.outputs.instance_profile_name

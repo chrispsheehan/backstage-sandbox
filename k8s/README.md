@@ -37,6 +37,12 @@ start` builds/imports the Backstage image, configures
 repo access for Argo CD, and deploys the Backstage application into the
 cluster.
 
+On EC2, `scripts/aws/platform-bootstrap.sh platform` wraps the shared cluster
+bootstrap plus Argo CD authentication and Crossplane provider setup. Its
+`applications` phase separately owns runtime Secrets, Argo CD application
+installation, and service verification. EC2 user data invokes both in order,
+but they remain separate retry and diagnostic boundaries.
+
 Crossplane bootstrap includes both the AWS family provider and the AWS S3
 provider, so generated S3 site apps can reconcile without additional manual
 provider installation after merge.
@@ -106,8 +112,8 @@ hostname. Argo CD retains TLS on the ALB-to-instance hop and `server.insecure`
 is not enabled. The ALB's public ports 80 and 443 are restricted to the
 Terraform caller's current public IPv4 address.
 
-EC2 user data also renders the EC2-specific Dex configuration from the GitHub
-OAuth values held in SSM Parameter Store. Its callback URL is
+The EC2 platform bootstrap also renders the EC2-specific Dex configuration
+from the GitHub OAuth values held in SSM Parameter Store. Its callback URL is
 `https://argocd.chrispsheehan.com/api/dex/callback`. The EC2 RBAC override
 gives every authenticated GitHub user the admin role, matching the disposable
 local lab, and the EC2-specific `argocd-cm` disables the built-in admin account.

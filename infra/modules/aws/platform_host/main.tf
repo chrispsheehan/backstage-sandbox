@@ -100,25 +100,11 @@ resource "aws_instance" "this" {
 
   user_data_replace_on_change = true
   user_data = templatefile("${path.module}/templates/user-data.sh.tftpl", {
-    aws_region = var.aws_region
-    backstage_runtime_revision = join(":", [
-      aws_ssm_parameter.backstage_backend_secret.version,
-      aws_ssm_parameter.backstage_github_client_id.version,
-      aws_ssm_parameter.backstage_github_client_secret.version,
-      var.database_parameter_revision,
-    ])
-    backstage_parameter_prefix  = "/${var.base_name}/backstage/${random_id.backstage_parameters.hex}"
-    database_parameter_prefix   = var.database_parameter_prefix
-    argocd_hostname             = local.argocd_hostname
-    argocd_url                  = local.argocd_url
-    backstage_hostname          = local.backstage_hostname
-    backstage_url               = local.backstage_url
-    bootstrap_script_base64gzip = base64gzip(var.bootstrap_script)
-    ecr_repository_url          = var.ecr_repository_url
-    git_repository_url          = "https://github.com/${var.github_repo}.git"
-    git_revision                = var.git_revision
-    platform_repo_content_hash  = data.archive_file.platform_repo.output_sha256
-    platform_repo_s3_uri        = "s3://${aws_s3_bucket.bootstrap.bucket}/${aws_s3_object.platform_repo.key}"
+    aws_region                   = var.aws_region
+    backstage_runtime_revision   = local.backstage_runtime_revision
+    bootstrap_environment_base64 = base64encode(local.bootstrap_environment)
+    platform_repo_content_hash   = data.archive_file.platform_repo.output_sha256
+    platform_repo_s3_uri         = "s3://${aws_s3_bucket.bootstrap.bucket}/${aws_s3_object.platform_repo.key}"
   })
 
   metadata_options {

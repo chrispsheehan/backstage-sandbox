@@ -28,18 +28,24 @@ The `just deploy` deployment creates:
   EC2 security group
 - a private, encrypted bootstrap S3 bucket with force-destroy enabled
 
-Terragrunt reads the tracked `scripts/aws/bootstrap-platform-host.sh` and passes
-it to the platform-host module. EC2 user data installs Docker, uses the AWS CLI
-already supplied by Amazon Linux 2023, and runs that script to install kubectl,
-Helm, and k3d. The shared lab bootstrap then creates
-a k3d cluster, installs Argo CD and Crossplane core, installs the Crossplane AWS
-providers, and configures them to use the EC2 instance profile through the AWS
-SDK's ambient credential chain. Before installing the Argo CD
-applications, it reads the Backstage backend secret, GitHub OAuth credentials,
-and RDS connection settings from SSM Parameter Store and creates runtime-only
-Kubernetes Secrets for those values and ECR image pulls. The same OAuth values
-configure Argo CD's Dex connector with its stable Route 53 URL. It then applies
-the EC2 Backstage `Application` and the repo-owned
+EC2 user data is limited to stage-zero setup: it downloads the bootstrap
+archive with the AWS CLI already supplied by Amazon Linux 2023, writes
+Terraform's non-secret deployment coordinates to the root-owned
+`/etc/backstage-sandbox/platform-bootstrap.env`, then calls the tracked
+`scripts/aws/platform-bootstrap.sh`. That command runs three phases: `host`
+installs Docker, kubectl, Helm, and k3d; `platform` creates the cluster and
+configures Argo CD and Crossplane; `applications` creates runtime Secrets,
+applies the Argo CD applications, and verifies their services. A failure in
+the console log names the phase that stopped.
+
+The Crossplane providers use the EC2 instance profile through the AWS SDK's
+ambient credential chain. The platform phase reads the GitHub OAuth values
+from SSM Parameter Store to configure Argo CD's Dex connector with its stable
+Route 53 URL. Before installing the Argo CD applications, the application phase
+reads the Backstage backend secret, the same GitHub OAuth credentials, and RDS
+connection settings and creates runtime-only Kubernetes Secrets for those
+values and ECR image pulls. It then applies the EC2 Backstage `Application` and
+the repo-owned
 `ApplicationSet`, which continuously discovers committed `apps/*/argocd`
 definitions on `main` and polls Git once per minute. The k3d NodePorts bind to
 the EC2 host interface but are reachable only from the ALB security group. The
@@ -49,7 +55,7 @@ Backstage rolls out. It does not configure External Secrets Operator or an
 in-cluster ingress controller.
 
 Terraform also packages the current contents of `config/`, `k8s/`,
-`scripts/lab/`, `crossplane/providers/`, and
+`scripts/aws/`, `scripts/lab/`, `crossplane/providers/`, and
 `crossplane/providerconfigs/ec2/` into one ZIP object in the dedicated
 bootstrap bucket. These are the files needed before Argo CD begins reconciling;
 Argo CD-managed application and function content is not part of the bootstrap
@@ -269,12 +275,11 @@ unrelated instances.
 
 EC2's native `running` state does not include SSM registration or user-data
 completion. User data stops the SSM agent before bootstrap and normally
-restarts it after k3d, Argo CD, and the Crossplane providers are ready. It also
-restarts the agent on bootstrap failure so the host remains accessible for
-diagnosis. `just shell` waits for the instance to report `Online` to Systems
-Manager, and the session profile waits for cloud-init before returning the
-prompt. If bootstrap failed, inspect `/var/log/platform-bootstrap.log` after
-connecting.
+restarts it after the bootstrap script completes. It also restarts the agent on
+bootstrap failure so the host remains accessible for diagnosis. `just shell`
+waits for the instance to report `Online` to Systems Manager, and the session
+profile waits for cloud-init before returning the prompt. If bootstrap failed,
+inspect `/var/log/platform-bootstrap.log` after connecting.
 
 On the host, inspect the bootstrap result with:
 
@@ -293,12 +298,13 @@ The copied working set is:
 /opt/backstage-sandbox/config
 /opt/backstage-sandbox/crossplane
 /opt/backstage-sandbox/k8s
+/opt/backstage-sandbox/scripts/aws
 /opt/backstage-sandbox/scripts/lab
 ```
 
-User data runs the shared bootstrap automatically as `ec2-user`. A session
-opened with `just shell` starts as that account, so the lab is immediately
-available:
+The bootstrap command runs host installation as root and the Kubernetes phases
+as `ec2-user`. A session opened with `just shell` starts as `ec2-user`, so the
+lab is immediately available:
 
 ```bash
 kubectl get nodes
@@ -306,6 +312,20 @@ kubectl get pods -A
 kubectl -n argocd get application backstage
 kubectl -n backstage get deployment,pods
 ```
+
+User data runs all three phases during initial provisioning. The same script
+can run a single phase after connecting:
+
+```bash
+sudo /opt/backstage-sandbox/scripts/aws/platform-bootstrap.sh host
+sudo /opt/backstage-sandbox/scripts/aws/platform-bootstrap.sh platform
+sudo /opt/backstage-sandbox/scripts/aws/platform-bootstrap.sh applications
+```
+
+This keeps a failed application rollout from requiring the host and controller
+setup to be repeated while diagnosing an existing instance. The script loads
+and validates its configuration from the environment file. Actual credentials
+remain in SSM and are read only by the focused configuration scripts.
 
 ECR authorization tokens expire after 12 hours. Existing pods continue to use
 their locally cached image, but a later pull can fail after the token stored in

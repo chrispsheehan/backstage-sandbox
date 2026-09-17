@@ -13,11 +13,6 @@ variable "base_name" {
   description = "Shared name prefix for disposable development resources."
 }
 
-variable "bootstrap_script" {
-  type        = string
-  description = "Tracked shell script run automatically during initial host bootstrap."
-}
-
 variable "github_repo" {
   type        = string
   description = "GitHub owner and repository scanned by the Argo CD ApplicationSet."

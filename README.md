@@ -14,7 +14,8 @@ public Application Load Balancer, with SSM access and a disposable Single-AZ
 RDS PostgreSQL database. The
 database has no public address and accepts connections only from the EC2
 host's security group. The host installs Docker, kubectl, Helm, and k3d; copies
-the repo's `config/`, `k8s/`, and shared `scripts/lab/` trees to the host; then
+the repo's `config/`, `k8s/`, `scripts/aws/`, and shared `scripts/lab/` trees to
+the host; then
 creates a k3d cluster with Argo CD and Crossplane core and installs an
 `ApplicationSet` that continuously discovers committed `apps/*/argocd`
 definitions. It also deploys Backstage from the EC2 Kustomize overlay after
@@ -52,11 +53,13 @@ Node 24 also works if you already have it on `PATH`.
   recipes while preserving their root-level command names.
 - `scripts/build/justfile` owns the shared Backstage container build and
   stale-lockfile recovery used by both local and ECR workflows.
+- `scripts/aws/platform-bootstrap.sh` owns the configured EC2 host, platform,
+  and application bootstrap phases invoked by user data.
 - `scripts/lab/bootstrap-cluster.sh` owns the cluster, Argo CD, and Crossplane
   core bootstrap shared by local and EC2 workflows.
 - `scripts/lab/install-crossplane-providers.sh`, `deploy-argocd-apps.sh`, and
   `load-backstage-image.sh` own the remaining portable deployment operations;
-  local and EC2 wrappers supply their environment-specific inputs.
+  local recipes and the EC2 bootstrap supply their environment-specific inputs.
 
 ## Recommended Shape
 

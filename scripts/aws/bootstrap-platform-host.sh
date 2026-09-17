@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if ((EUID != 0)); then
+  echo "Run this host setup script as root." >&2
+  exit 1
+fi
+
+dnf install -y docker gzip tar
+systemctl enable --now docker
+usermod -aG docker ec2-user
+
 until curl -fsSL https://dl.k8s.io/release/stable.txt -o /tmp/kubectl-version; do
   sleep 10
 done
