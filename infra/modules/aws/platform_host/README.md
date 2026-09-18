@@ -9,11 +9,12 @@ The module discovers the existing VPC by exact `Name` tag, public subnets by
 hosted zone by name. It creates an internet-facing ALB across those subnets, an
 ACM certificate, and Backstage and Argo CD alias A records targeting the ALB.
 The HTTPS listener routes by hostname to separate target groups. EC2 user data
-installs Docker, kubectl, Helm, and k3d, then creates a k3d cluster with Argo CD,
-Crossplane core, and the AWS providers. k3d binds the Backstage and Argo CD
-NodePorts to host ports 30070 and 30443. The platform security group accepts
-those ports only from the ALB security group. Bootstrap verifies both services
-locally after Backstage rolls out.
+installs Docker, kubectl, and k3d, then creates a k3d cluster with Argo CD.
+Bootstrap registers one Crossplane root application; Argo CD then creates the
+core, AWS-provider, and EC2 provider-config child applications from Git. k3d
+binds the Backstage and Argo CD NodePorts to host ports 30070 and 30443. The
+platform security group accepts those ports only from the ALB security group.
+Bootstrap verifies both services locally after Backstage rolls out.
 Before Argo CD deploys Backstage from the EC2 overlay, user data reads its
 backend secret, GitHub OAuth values, and RDS connection settings from SSM
 Parameter Store and creates the runtime, database, and ECR pull Secrets in
@@ -30,8 +31,8 @@ path and revision into this module; only the OAuth values come from `.env`.
 Database credentials are not embedded in user data or platform-host state.
 
 Terraform creates a private, encrypted bootstrap bucket with `force_destroy =
-true`, stages the repo's `config/`, `crossplane/`, `k8s/`, and shared
-`scripts/lab/` files there as one ZIP, and expands it at
+true`, stages the complete `k8s/bootstrap/argocd/`, `scripts/aws/`, and
+`scripts/lab/` directories as one ZIP, and expands it at
 `/opt/backstage-sandbox`. No repository credentials are placed on the host.
 
 User data runs the shared lab script as `ec2-user`, which owns the generated
@@ -39,8 +40,8 @@ kubeconfig and has Docker access. The script can be rerun manually as that
 account. A module-owned Session document lets `just ec2-shell` start directly
 as `ec2-user` without changing the account-wide Session Manager preferences.
 User data keeps the SSM agent stopped during bootstrap and restarts it only
-after the cluster and core controllers are ready, so SSM `Online` is also the
-lab readiness signal.
+after the application endpoints pass verification. Argo CD may still be
+reconciling Crossplane when SSM becomes `Online`.
 
 Changing the copied files or user data replaces the disposable host. Any
 cluster and runtime data created manually on it are therefore ephemeral. The

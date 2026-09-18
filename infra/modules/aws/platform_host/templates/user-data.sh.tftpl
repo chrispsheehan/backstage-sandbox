@@ -13,7 +13,8 @@ AWS_REGION="${aws_region}"
 # Platform repo content: ${platform_repo_content_hash}
 # Backstage runtime revision: ${backstage_runtime_revision}
 
-# Session Manager becoming Online is the signal that the complete lab is ready.
+# Session Manager becomes Online after bootstrap and endpoint verification.
+# Argo CD may still be reconciling Crossplane at that point.
 systemctl stop amazon-ssm-agent
 
 # Restore diagnostic access if a later bootstrap step fails under `set -e`.

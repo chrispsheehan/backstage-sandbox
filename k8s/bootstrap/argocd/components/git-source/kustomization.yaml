@@ -1,0 +1,51 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+configMapGenerator:
+  - name: argocd-git-source
+    namespace: argocd
+    literals:
+      - repoURL=https://github.com/chrispsheehan/backstage-sandbox.git
+      - targetRevision=main
+generatorOptions:
+  disableNameSuffixHash: true
+replacements:
+  - source:
+      kind: ConfigMap
+      name: argocd-git-source
+      fieldPath: data.repoURL
+    targets:
+      - select:
+          kind: Application
+          labelSelector: backstage.io/git-source=true
+        fieldPaths:
+          - spec.source.repoURL
+        options:
+          create: true
+      - select:
+          kind: ApplicationSet
+          labelSelector: backstage.io/git-source=true
+        fieldPaths:
+          - spec.generators.0.git.repoURL
+          - spec.template.spec.source.repoURL
+        options:
+          create: true
+  - source:
+      kind: ConfigMap
+      name: argocd-git-source
+      fieldPath: data.targetRevision
+    targets:
+      - select:
+          kind: Application
+          labelSelector: backstage.io/git-source=true
+        fieldPaths:
+          - spec.source.targetRevision
+        options:
+          create: true
+      - select:
+          kind: ApplicationSet
+          labelSelector: backstage.io/git-source=true
+        fieldPaths:
+          - spec.generators.0.git.revision
+          - spec.template.spec.source.targetRevision
+        options:
+          create: true

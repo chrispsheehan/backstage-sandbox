@@ -33,15 +33,18 @@ archive with the AWS CLI already supplied by Amazon Linux 2023, writes
 Terraform's non-secret deployment coordinates to the root-owned
 `/etc/backstage-sandbox/platform-bootstrap.env`, then calls the tracked
 `scripts/aws/platform-bootstrap.sh`. That command runs three phases: `host`
-installs Docker, kubectl, Helm, and k3d; `platform` creates the cluster and
-configures Argo CD and Crossplane; `applications` creates runtime Secrets,
-applies the Argo CD applications, and verifies their services. A failure in
-the console log names the phase that stopped.
+installs Docker, kubectl, and k3d; `platform` creates the cluster, installs
+Argo CD, and lets Argo reconcile Crossplane; `applications` creates runtime
+Secrets, applies the remaining Argo CD applications, and verifies their
+services. A failure in the console log names the phase that stopped.
 
 The Crossplane providers use the EC2 instance profile through the AWS SDK's
 ambient credential chain. The platform phase reads the GitHub OAuth values
 from SSM Parameter Store to configure Argo CD's Dex connector with its stable
-Route 53 URL. Before installing the Argo CD applications, the application phase
+Route 53 URL, then registers one Crossplane root application. Argo CD creates
+the core, provider, and EC2 provider-config child applications from Git without
+blocking bootstrap on their reconciliation. Before
+installing the remaining Argo CD applications, the application phase
 reads the Backstage backend secret, the same GitHub OAuth credentials, and RDS
 connection settings and creates runtime-only Kubernetes Secrets for those
 values and ECR image pulls. It then applies the EC2 Backstage `Application` and
@@ -54,12 +57,11 @@ from the requested hostname. Bootstrap verifies both services locally after
 Backstage rolls out. It does not configure External Secrets Operator or an
 in-cluster ingress controller.
 
-Terraform also packages the current contents of `config/`, `k8s/`,
-`scripts/aws/`, `scripts/lab/`, `crossplane/providers/`, and
-`crossplane/providerconfigs/ec2/` into one ZIP object in the dedicated
-bootstrap bucket. These are the files needed before Argo CD begins reconciling;
-Argo CD-managed application and function content is not part of the bootstrap
-archive. User data expands the archive at `/opt/backstage-sandbox` and makes it
+Terraform packages the complete `k8s/bootstrap/argocd/`, `scripts/aws/`, and
+`scripts/lab/` directories into one ZIP object in the dedicated bootstrap
+bucket. The archive supplies the seed manifest and scripts, but Argo CD reads
+the authoritative Crossplane child applications and workloads from Git. User
+data expands the archive at `/opt/backstage-sandbox` and makes it
 owned by `ec2-user`. S3 staging avoids EC2's small user-data limit while
 requiring no repository clone, Git installation, or GitHub credential. Changing
 any copied file replaces this deliberately disposable host so its bootstrap
@@ -302,7 +304,6 @@ On the host, inspect the bootstrap result with:
 sudo tail -n 200 /var/log/platform-bootstrap.log
 docker --version
 kubectl version --client
-helm version
 k3d version
 find /opt/backstage-sandbox -maxdepth 2 -type d | sort
 ```
@@ -310,9 +311,7 @@ find /opt/backstage-sandbox -maxdepth 2 -type d | sort
 The copied working set is:
 
 ```text
-/opt/backstage-sandbox/config
-/opt/backstage-sandbox/crossplane
-/opt/backstage-sandbox/k8s
+/opt/backstage-sandbox/k8s/bootstrap/argocd
 /opt/backstage-sandbox/scripts/aws
 /opt/backstage-sandbox/scripts/lab
 ```
@@ -356,7 +355,7 @@ Sessions opened without the lab-specific document still use the default
 The shared bootstrap remains safe to rerun manually from the `ec2-user` shell.
 
 The installed Backstage `Application` and generated-app `ApplicationSet` read
-their desired state from the tracked Git revision rather than the EC2
+their desired state from `main` rather than the EC2
 filesystem. Updating the committed EC2 Backstage overlay, or adding or
 removing a committed `apps/*/argocd` definition, is therefore reconciled
 automatically without another `kubectl apply`.

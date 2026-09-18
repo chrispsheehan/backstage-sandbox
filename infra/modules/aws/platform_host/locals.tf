@@ -17,8 +17,6 @@ locals {
     "DATABASE_PARAMETER_PREFIX=${var.database_parameter_prefix}",
     "BACKSTAGE_URL=${local.backstage_url}",
     "ARGOCD_URL=${local.argocd_url}",
-    "GIT_REPOSITORY_URL=https://github.com/${var.github_repo}.git",
-    "GIT_REVISION=${var.git_revision}",
     "",
   ])
 }

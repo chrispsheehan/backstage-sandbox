@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../applications/crossplane-root.yaml
+  - ../../applications/crossplane-core.yaml
+  - ../../applications/crossplane-providers.yaml
+  - ../../applications/crossplane-config.yaml
+components:
+  - ../../components/git-source

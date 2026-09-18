@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-environment
+  namespace: argocd
+data:
+  crossplaneRootPath: k8s/bootstrap/argocd/overlays/local/crossplane
+  providerConfigPath: crossplane/providerconfigs/local
+  backstagePath: k8s/overlays/local/backstage

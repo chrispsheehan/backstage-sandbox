@@ -3,37 +3,42 @@ kind: ApplicationSet
 metadata:
   name: generated-argocd-apps
   namespace: argocd
+  labels:
+    backstage.io/git-source: "true"
 spec:
   goTemplate: true
   goTemplateOptions:
     - missingkey=error
   generators:
     - git:
-        # Public repos need no credential. For a private repo, configure an
-        # Argo CD repository Secret before applying this ApplicationSet.
-        # EC2 integration notes: ../../../infra/README.md#private-github-repository
-        # Argo CD docs: https://argo-cd.readthedocs.io/en/stable/user-guide/private-repositories/
-        repoURL: __ARGOCD_REPO_URL__
-        revision: __ARGOCD_BRANCH__
-        requeueAfterSeconds: 60
+        revision: main
         directories:
           - path: apps/*/argocd
+        requeueAfterSeconds: 60
   template:
     metadata:
-      name: '{{ index .path.segments 1 }}-bootstrap'
+      name: '{{ index .path.segments 1 }}-website'
       namespace: argocd
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
     spec:
       project: default
       source:
-        repoURL: __ARGOCD_REPO_URL__
-        targetRevision: __ARGOCD_BRANCH__
+        targetRevision: main
         path: '{{ .path.path }}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: argocd
+        namespace: '{{ index .path.segments 1 }}'
       syncPolicy:
         automated:
           prune: true
           selfHeal: true
+        retry:
+          limit: 10
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 1m
         syncOptions:
           - CreateNamespace=true
+          - SkipDryRunOnMissingResource=true

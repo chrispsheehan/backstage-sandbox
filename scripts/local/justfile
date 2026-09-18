@@ -17,14 +17,13 @@ install:
     cd {{ PROJECT_DIR }}
     npx @backstage/create-app@latest
 
-# Bootstrap k3d, Argo CD, Crossplane, and the local-only integrations.
+# Bootstrap k3d and Argo CD, then register Crossplane and configure local integrations.
 _bootstrap-cluster:
     #!/usr/bin/env bash
     set -euo pipefail
 
     CLUSTER_NAME="{{ CLUSTER_NAME }}" "{{ PROJECT_DIR }}/scripts/lab/bootstrap-cluster.sh"
 
-    kubectl apply -f "{{ PROJECT_DIR }}/k8s/bootstrap/argocd/local-overrides.yaml"
     if [[ -f "{{ PROJECT_DIR }}/.env" ]]; then
         set -a
         source "{{ PROJECT_DIR }}/.env"
@@ -43,7 +42,9 @@ _bootstrap-cluster:
     kubectl -n argocd rollout status deployment/argocd-dex-server --timeout=300s
     kubectl -n argocd rollout status deployment/argocd-server --timeout=300s
 
-    "{{ PROJECT_DIR }}/scripts/lab/install-crossplane-providers.sh"
+    just local-argocd-repo-auth
+
+    "{{ PROJECT_DIR }}/scripts/lab/register-crossplane-root.sh" local
 
     just local-ensure-argocd-port-forward
 
@@ -55,7 +56,6 @@ _start:
     just _bootstrap-cluster
     just local-crossplane-aws-auth ~/.aws/credentials
     just local-backstage-auth
-    just local-argocd-repo-auth
     just local-build-backstage-image
     just local-deploy-backstage
     just local-ensure-argocd-port-forward
@@ -197,7 +197,7 @@ local-clean:
     just local-stop-forwards
     docker image rm backstage-lab:dev >/dev/null 2>&1 || true
 
-# Copy an AWS credentials file verbatim into Crossplane and apply the default cluster-wide AWS config.
+# Copy an AWS credentials file into the Secret used by Argo CD's local Crossplane config.
 local-crossplane-aws-auth credentials_file:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -214,7 +214,6 @@ local-crossplane-aws-auth credentials_file:
     secret_name="aws-creds"
     aws_dir="{{ LAB_DIR }}/aws"
     creds_file="${aws_dir}/aws-creds.credentials"
-    provider_config_file="{{ PROJECT_DIR }}/crossplane/providerconfigs/local/default-cluster-provider-config.yaml"
 
     if [[ ! -f "${credentials_file}" ]]; then
         echo "Credentials file not found: ${credentials_file}" >&2
@@ -224,14 +223,15 @@ local-crossplane-aws-auth credentials_file:
     mkdir -p "${aws_dir}"
     cp "${credentials_file}" "${creds_file}"
 
+    kubectl create namespace "${secret_namespace}" \
+      --dry-run=client \
+      -o yaml | kubectl apply -f -
     kubectl -n "${secret_namespace}" create secret generic "${secret_name}" \
       --from-file=creds="${creds_file}" \
       --dry-run=client \
       -o yaml | kubectl apply -f -
 
-    kubectl apply -f "${provider_config_file}"
-
-    echo "Updated Secret ${secret_namespace}/${secret_name} and ClusterProviderConfig/default."
+    echo "Updated Secret ${secret_namespace}/${secret_name}; Argo CD owns ClusterProviderConfig/default."
 
 # Patch the in-cluster Backstage secret from repo root .env.
 local-backstage-auth:
@@ -267,7 +267,7 @@ local-argocd-github-auth:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    for bin in kubectl sed base64; do
+    for bin in kubectl base64; do
         command -v "${bin}" >/dev/null 2>&1 || {
             echo "Missing required binary: ${bin}" >&2
             exit 1
@@ -287,21 +287,16 @@ local-argocd-github-auth:
     : "${AUTH_GITHUB_CLIENT_ID:?AUTH_GITHUB_CLIENT_ID must be set in .env}"
     : "${AUTH_GITHUB_CLIENT_SECRET:?AUTH_GITHUB_CLIENT_SECRET must be set in .env}"
 
-    rendered_dir="{{ LAB_DIR }}/argocd"
-    rendered_config="${rendered_dir}/github-sso-configmap.yaml"
-    template_file="{{ PROJECT_DIR }}/k8s/bootstrap/argocd/github-sso-configmap.yaml"
-    encoded_secret="$(printf '%s' "${AUTH_GITHUB_CLIENT_SECRET}" | base64 | tr -d '\n')"
+    encoded_client_id="$(printf '%s' "${AUTH_GITHUB_CLIENT_ID}" | base64 | tr -d '\n')"
+    encoded_client_secret="$(printf '%s' "${AUTH_GITHUB_CLIENT_SECRET}" | base64 | tr -d '\n')"
 
-    mkdir -p "${rendered_dir}"
-
-    sed \
-      -e "s/__AUTH_GITHUB_CLIENT_ID__/${AUTH_GITHUB_CLIENT_ID}/g" \
-      "${template_file}" > "${rendered_config}"
-
-    kubectl apply -f "${rendered_config}"
-    kubectl apply -f "{{ PROJECT_DIR }}/k8s/bootstrap/argocd/rbac-local-admin.yaml"
     kubectl -n argocd patch secret argocd-secret --type merge \
-      -p "{\"data\":{\"dex.github.clientSecret\":\"${encoded_secret}\"}}"
+      -p "{\"data\":{\"dex.github.clientID\":\"${encoded_client_id}\",\"dex.github.clientSecret\":\"${encoded_client_secret}\"}}"
+    kubectl kustomize "{{ PROJECT_DIR }}/k8s/bootstrap/argocd/configuration/github-sso" \
+      | kubectl apply -f -
+    kubectl -n argocd patch configmap argocd-cm --type merge \
+      -p '{"data":{"url":"http://localhost:8080","admin.enabled":"true"}}'
+    kubectl apply -f "{{ PROJECT_DIR }}/k8s/bootstrap/argocd/configuration/rbac-admin.yaml"
     kubectl -n argocd rollout restart deployment/argocd-dex-server
     kubectl -n argocd rollout restart deployment/argocd-server
     kubectl -n argocd rollout status deployment/argocd-dex-server --timeout=300s
@@ -362,26 +357,7 @@ local-deploy-backstage:
         echo "AUTH_GITHUB_CLIENT_ID / AUTH_GITHUB_CLIENT_SECRET not set; keeping existing backstage/backstage-secrets values."
     fi
 
-    repo_url="$(git remote get-url origin)"
-    case "${repo_url}" in
-        git@github.com:*)
-            repo_https_url="https://github.com/${repo_url#git@github.com:}"
-            ;;
-        https://github.com/*)
-            repo_https_url="${repo_url}"
-            ;;
-        *)
-            echo "Unsupported origin remote: ${repo_url}" >&2
-            exit 1
-            ;;
-    esac
-    repo_https_url="${repo_https_url%.git}.git"
-    branch_name="$(git branch --show-current)"
-    if [[ -z "${branch_name}" ]]; then
-        branch_name="main"
-    fi
-
-    "{{ PROJECT_DIR }}/scripts/lab/deploy-argocd-apps.sh" "${repo_https_url}" "${branch_name}"
+    "{{ PROJECT_DIR }}/scripts/lab/deploy-argocd-apps.sh"
 
 # Build the local Backstage image and load it directly into the k3d cluster.
 local-build-backstage-image:

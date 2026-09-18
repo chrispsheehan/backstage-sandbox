@@ -3,15 +3,11 @@ kind: Application
 metadata:
   name: backstage
   namespace: argocd
+  labels:
+    backstage.io/git-source: "true"
 spec:
   project: default
-  source:
-    # Bootstrap renders this template from the repo's remote.origin.url.
-    # GitHub SSH remotes are rewritten to HTTPS so a public repo can sync
-    # without adding SSH credentials to Argo CD.
-    repoURL: __ARGOCD_REPO_URL__
-    targetRevision: __ARGOCD_BRANCH__
-    path: k8s/overlays/local/backstage
+  source: {}
   destination:
     server: https://kubernetes.default.svc
     namespace: backstage

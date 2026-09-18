@@ -13,10 +13,10 @@ An optional dev-only AWS deployment provides an EC2 platform lab behind a
 public Application Load Balancer, with SSM access and a disposable Single-AZ
 RDS PostgreSQL database. The
 database has no public address and accepts connections only from the EC2
-host's security group. The host installs Docker, kubectl, Helm, and k3d; copies
-the repo's `config/`, `k8s/`, `scripts/aws/`, and shared `scripts/lab/` trees to
-the host; then
-creates a k3d cluster with Argo CD and Crossplane core and installs an
+host's security group. The host installs Docker, kubectl, and k3d; copies the
+complete `k8s/bootstrap/argocd/`, `scripts/aws/`, and `scripts/lab/`
+directories; then creates a k3d cluster, installs Argo CD, registers one
+Crossplane root application, and installs an
 `ApplicationSet` that continuously discovers committed `apps/*/argocd`
 definitions. It also deploys Backstage from the EC2 Kustomize overlay after
 creating its runtime, database, and ECR pull secrets from SSM and the instance
@@ -43,7 +43,7 @@ Node 24 also works if you already have it on `PATH`.
 - [backstage/README.md](backstage/README.md) explains the Backstage app and optional image build flow.
 - [BACKSTAGE-REPLAY.md](BACKSTAGE-REPLAY.md) records replay instructions for changes under the ignored `backstage/` scaffold.
 - [config/README.md](config/README.md) explains how repo-owned catalog data overrides the scaffold's example data.
-- [crossplane/README.md](crossplane/README.md) explains the minimal Crossplane setup currently installed by bootstrap.
+- [crossplane/README.md](crossplane/README.md) explains the Argo-managed Crossplane installation and AWS authentication profiles.
 - [k8s/README.md](k8s/README.md) explains the cluster bootstrap order, Argo CD ownership, and local access pattern.
 - [infra/README.md](infra/README.md) explains the optional dev EC2 workstation.
 - `justfile` exposes the root commands and imports the local and CI recipes.
@@ -55,9 +55,9 @@ Node 24 also works if you already have it on `PATH`.
   stale-lockfile recovery used by both local and ECR workflows.
 - `scripts/aws/platform-bootstrap.sh` owns the configured EC2 host, platform,
   and application bootstrap phases invoked by user data.
-- `scripts/lab/bootstrap-cluster.sh` owns the cluster, Argo CD, and Crossplane
-  core bootstrap shared by local and EC2 workflows.
-- `scripts/lab/install-crossplane-providers.sh`, `deploy-argocd-apps.sh`, and
+- `scripts/lab/bootstrap-cluster.sh` owns the cluster and Argo CD bootstrap
+  shared by local and EC2 workflows.
+- `scripts/lab/register-crossplane-root.sh`, `deploy-argocd-apps.sh`, and
   `load-backstage-image.sh` own the remaining portable deployment operations;
   local recipes and the EC2 bootstrap supply their environment-specific inputs.
 
@@ -66,7 +66,8 @@ Node 24 also works if you already have it on `PATH`.
 - Use `k3d` instead of installing host-level `k3s` directly.
   `k3d` still runs real `k3s`, but keeps teardown trivial and only depends on Docker.
 - Install Argo CD for local GitOps experiments.
-- Install Crossplane core during bootstrap, plus the AWS family provider for shared AWS credentials wiring, but do not add demo managed resources yet.
+- Let Argo CD install Crossplane core and the AWS providers after the initial
+  Argo-only bootstrap; do not add demo managed resources yet.
 - Use committed demo `Secret` objects with obvious local-only values to minimize friction. This is acceptable here because the environment is disposable and non-production.
 
 Local Crossplane authentication uses an explicitly loaded AWS credentials
@@ -76,14 +77,14 @@ enabled so its providers use the attached instance role; see
 
 ## Backstage Runtime
 
-`just local-up` is the one-command local setup path: it bootstraps `k3d`, Argo CD,
-and Crossplane, wires local GitHub auth, builds the Backstage image, imports it
+`just local-up` is the one-command local setup path: it bootstraps `k3d` and
+Argo CD, lets Argo reconcile Crossplane, wires local GitHub auth, builds the Backstage image, imports it
 into `k3d`, and deploys Backstage into the cluster through Argo CD.
 `just local-setup` is the infra-only path. Create `.env` from
 `.example.env` before running `just local-up`.
 
 `just local-deploy-backstage` also applies an Argo CD `ApplicationSet` that scans
-committed `apps/*/argocd` definitions on the current Git branch and
+committed `apps/*/argocd` definitions on `main` and
 auto-registers generated site apps after their pull requests merge.
 
 Backstage GitHub OAuth credentials are runtime-managed from repo root `.env`,
@@ -126,7 +127,7 @@ unless you also plan to change the Backstage auth configuration.
 
 ```bash
 just install  # scaffold backstage/ and install dependencies (run once)
-just local-setup # Bootstrap local k3d, Argo CD, Crossplane, and integrations without Backstage
+just local-setup # Bootstrap k3d and Argo CD, then register Crossplane without Backstage
 just local-up    # Run the complete local workflow, deploy Backstage, and port-forward both UIs
 just local-down  # Delete the local cluster, port-forwards, lab state, and image
 just local-stop  # Stop the local k3d cluster without deleting it
@@ -169,8 +170,8 @@ the Backstage application.
 
 Generated S3 site apps are registered automatically from their committed
 `apps/<name>/argocd/application.yaml` definitions after
-`just local-deploy-backstage` has been run against the branch that contains
-them.
+`just local-deploy-backstage` has installed the `main`-tracking
+`ApplicationSet`.
 
 Some `k3d` installs write the cluster endpoint into kubeconfig as
 `https://0.0.0.0:<port>`. That wildcard bind address is not reachable as a
@@ -182,7 +183,7 @@ If the `platform-lab` cluster already exists but is stopped, `just local-setup`
 starts it instead of assuming the API server is already
 reachable.
 
-Prerequisites: Docker, `just`, `kubectl`, `helm`, `k3d`, and GitHub
+Prerequisites: Docker, `just`, `kubectl`, `k3d`, and GitHub
 authentication through `gh auth login`.
 Node 22 or 24 is only needed for `just install` when recreating the scaffold —
 see
@@ -190,7 +191,7 @@ see
 
 ## Quick Start
 
-Prerequisites: Docker, `kubectl`, `helm`, `k3d` — see
+Prerequisites: Docker, `kubectl`, `k3d` — see
 [Install Prerequisites](#install-prerequisites-macos--homebrew).
 
 Then run:
@@ -214,13 +215,14 @@ That command will:
 
 1. Create the disposable `k3s` cluster with `k3d`.
 2. Install Argo CD.
-3. Install Crossplane core.
-4. Install the Crossplane AWS family provider and the S3 service provider.
-5. Configure Argo CD GitHub SSO when `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` are set in `.env`.
-6. Configure Argo CD repo access for this repo using `gh auth token`.
-7. Build and import the `backstage-lab:dev` image into `k3d`.
-8. Apply the Argo CD `backstage` `Application` and wait for the `backstage` deployment rollout.
-9. Port-forward Argo CD on `http://localhost:8080` and Backstage on `http://localhost:7007`.
+3. Apply one Crossplane root `Application`; Argo uses it to create and
+   asynchronously reconcile the core, AWS provider, and local provider-config
+   child applications.
+4. Configure Argo CD GitHub SSO when `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` are set in `.env`.
+5. Configure Argo CD repo access for this repo using `gh auth token`.
+6. Build and import the `backstage-lab:dev` image into `k3d`.
+7. Apply the Argo CD `backstage` `Application` and wait for the `backstage` deployment rollout.
+8. Port-forward Argo CD on `http://localhost:8080` and Backstage on `http://localhost:7007`.
 
 At the end of bootstrap, Argo CD is port-forwarded on:
 
@@ -261,7 +263,8 @@ uses its in-cluster service account to read Kubernetes, Argo CD, and
 Crossplane resources for the UI.
 
 To let Crossplane use the same AWS identity as your local CLI, copy a shared
-credentials file into a Kubernetes `Secret` and a cluster-wide provider config:
+credentials file into the Kubernetes `Secret` referenced by the Argo-managed
+provider config:
 
 ```bash
 just local-crossplane-aws-auth ~/.aws/credentials
@@ -271,8 +274,8 @@ The S3 website scaffolder derives bucket names as
 `<prefix>-<AWS_ACCOUNT_ID>-<region>`. The form asks for `AWS_ACCOUNT_ID`
 explicitly.
 
-That command uses the default names, copies the file verbatim into
-`Secret/crossplane-system/aws-creds`, and applies the static
+That command uses the default names and copies the file verbatim into
+`Secret/crossplane-system/aws-creds`. Argo CD owns and reconciles the static
 `ClusterProviderConfig/default`.
 
 The S3 website scaffolder opens pull requests using the signed-in GitHub user.

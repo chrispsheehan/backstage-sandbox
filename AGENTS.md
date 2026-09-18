@@ -32,6 +32,10 @@ capability areas just because they're nearby.
 
 **YAML**
 - Do not create YAML through shell heredocs/`EOF` blocks or embed YAML documents inside other YAML files; keep manifests as standalone tracked files.
+- When a Kubernetes `ConfigMap` key contains YAML or JSON configuration, keep
+  that payload in a standalone tracked file and load it with a Kustomize
+  `configMapGenerator` `files` entry instead of embedding it with a YAML block
+  scalar (`|` or `|-`).
 
 **Docs**
 - Keep docs aligned with behavior changes.
@@ -63,8 +67,8 @@ capability areas just because they're nearby.
 
 ## Local Environment Assumptions
 
-- Full cluster workflow needs Docker, `k3d`, `kubectl`, `helm`.
-- `just local-setup` needs `k3d`, `kubectl`, and `helm`; `just install`
+- Full cluster workflow needs Docker, `k3d`, and `kubectl`.
+- `just local-setup` needs `k3d` and `kubectl`; `just install`
   additionally needs a local Node 22 or 24 toolchain. `just local-up` needs the
   cluster tools plus Docker because it bootstraps the cluster and deploys the
   Backstage image.

@@ -5,7 +5,7 @@ import 'scripts/build/justfile'
 default:
     @just --list
 
-# Bootstrap local k3d, Argo CD, Crossplane, and local integrations without deploying Backstage.
+# Bootstrap local k3d and Argo CD, then register Crossplane without deploying Backstage.
 local-setup:
     just --justfile "{{ PROJECT_DIR }}/scripts/local/justfile" _bootstrap-cluster
 

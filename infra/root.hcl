@@ -71,7 +71,6 @@ inputs = merge(
     allowed_read_aws_account_ids = local.allowed_read_aws_account_ids
     project_name                 = local.project_name
     environment                  = local.environment
-    github_repo                  = local.github_repo
     base_name                    = local.base_name
     state_bucket                 = local.state_bucket
   }

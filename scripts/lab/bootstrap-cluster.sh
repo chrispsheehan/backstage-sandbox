@@ -2,13 +2,19 @@
 set -euo pipefail
 
 cluster_name="${CLUSTER_NAME:-platform-lab}"
+platform_environment="${PLATFORM_ENVIRONMENT:-local}"
 argocd_https_host_port="${ARGOCD_HTTPS_HOST_PORT:-}"
 backstage_http_host_port="${BACKSTAGE_HTTP_HOST_PORT:-}"
 platform_host_bind_address="${PLATFORM_HOST_BIND_ADDRESS:-127.0.0.1}"
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_dir="$(cd -- "${script_dir}/../.." && pwd)"
 
-for bin in kubectl helm k3d; do
+if [[ "${platform_environment}" != "local" && "${platform_environment}" != "ec2" ]]; then
+  echo "PLATFORM_ENVIRONMENT must be local or ec2: ${platform_environment}" >&2
+  exit 1
+fi
+
+for bin in kubectl k3d; do
   command -v "${bin}" >/dev/null 2>&1 || {
     echo "Missing required binary: ${bin}" >&2
     exit 1
@@ -58,26 +64,23 @@ fi
 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -n argocd --server-side --force-conflicts \
   -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.2/manifests/install.yaml
+kubectl apply -f "${project_dir}/k8s/bootstrap/argocd/configuration/kustomize-build-options.yaml"
+kubectl kustomize \
+  "${project_dir}/k8s/bootstrap/argocd/overlays/${platform_environment}/platform" \
+  | kubectl apply --server-side --force-conflicts -f -
+kubectl -n argocd rollout restart deployment/argocd-repo-server
+if [[ "${platform_environment}" == "local" ]]; then
+  kubectl -n argocd rollout restart deployment/argocd-server
+fi
 kubectl -n argocd rollout status deployment/argocd-repo-server --timeout=300s
 kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=300s
 kubectl -n argocd rollout status deployment/argocd-dex-server --timeout=300s
 kubectl -n argocd rollout status deployment/argocd-server --timeout=300s
 if [[ -n "${argocd_https_host_port}" ]]; then
-  kubectl apply --server-side --force-conflicts \
-    -f "${project_dir}/k8s/bootstrap/argocd/ec2-server-nodeport.yaml"
   echo "Argo CD HTTPS is mapped to host port ${argocd_https_host_port}."
 fi
 if [[ -n "${backstage_http_host_port}" ]]; then
   echo "Backstage HTTP is mapped to host port ${backstage_http_host_port}."
 fi
 
-helm repo add crossplane-stable https://charts.crossplane.io/stable >/dev/null 2>&1 || true
-helm repo update >/dev/null
-helm upgrade --install crossplane crossplane-stable/crossplane \
-  --namespace crossplane-system \
-  --create-namespace \
-  --version 2.3.4
-kubectl -n crossplane-system rollout status deployment/crossplane --timeout=300s
-kubectl -n crossplane-system rollout status deployment/crossplane-rbac-manager --timeout=300s
-
-echo "Cluster ${cluster_name} is ready with Argo CD and Crossplane core."
+echo "Cluster ${cluster_name} is ready with Argo CD."

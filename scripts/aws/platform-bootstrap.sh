@@ -59,21 +59,21 @@ host_phase() {
 
 platform_phase() {
   run_as_ec2_user \
+    PLATFORM_ENVIRONMENT=ec2 \
     PLATFORM_HOST_BIND_ADDRESS=0.0.0.0 \
     ARGOCD_HTTPS_HOST_PORT=30443 \
     BACKSTAGE_HTTP_HOST_PORT=30070 \
     "${lab_scripts}/bootstrap-cluster.sh"
   run_as_ec2_user "${lab_scripts}/configure-ec2-argocd-github-auth.sh" \
     "${AWS_REGION}" "${BACKSTAGE_PARAMETER_PREFIX}" "${ARGOCD_URL}"
-  run_as_ec2_user "${lab_scripts}/install-crossplane-providers.sh" ec2
+  run_as_ec2_user "${lab_scripts}/register-crossplane-root.sh" ec2
 }
 
 applications_phase() {
   run_as_ec2_user "${lab_scripts}/configure-ec2-backstage-secrets.sh" \
     "${AWS_REGION}" "${ECR_REPOSITORY_URL}" "${BACKSTAGE_PARAMETER_PREFIX}" \
     "${DATABASE_PARAMETER_PREFIX}" "${BACKSTAGE_URL}"
-  run_as_ec2_user "${lab_scripts}/deploy-ec2-argocd-apps.sh" \
-    "${GIT_REPOSITORY_URL}" "${GIT_REVISION}"
+  run_as_ec2_user "${lab_scripts}/deploy-ec2-argocd-apps.sh"
   run_as_ec2_user "${lab_scripts}/verify-ec2-services.sh"
 }
 
@@ -118,7 +118,7 @@ case "${command_name}" in
     load_environment
     require_environment \
       AWS_REGION ECR_REPOSITORY_URL BACKSTAGE_PARAMETER_PREFIX \
-      DATABASE_PARAMETER_PREFIX BACKSTAGE_URL GIT_REPOSITORY_URL GIT_REVISION
+      DATABASE_PARAMETER_PREFIX BACKSTAGE_URL
     run_phase applications applications_phase
     ;;
   all)
@@ -129,8 +129,7 @@ case "${command_name}" in
     load_environment
     require_environment \
       AWS_REGION ECR_REPOSITORY_URL BACKSTAGE_PARAMETER_PREFIX \
-      DATABASE_PARAMETER_PREFIX BACKSTAGE_URL ARGOCD_URL \
-      GIT_REPOSITORY_URL GIT_REVISION
+      DATABASE_PARAMETER_PREFIX BACKSTAGE_URL ARGOCD_URL
     run_phase host host_phase
     run_phase platform platform_phase
     run_phase applications applications_phase

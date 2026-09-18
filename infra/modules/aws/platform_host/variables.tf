@@ -13,17 +13,6 @@ variable "base_name" {
   description = "Shared name prefix for disposable development resources."
 }
 
-variable "github_repo" {
-  type        = string
-  description = "GitHub owner and repository scanned by the Argo CD ApplicationSet."
-}
-
-variable "git_revision" {
-  type        = string
-  description = "Git revision scanned by the Argo CD ApplicationSet."
-  default     = "main"
-}
-
 variable "vpc_name" {
   type        = string
   description = "Exact Name tag of the existing VPC."
@@ -90,5 +79,5 @@ variable "database_parameter_revision" {
 
 variable "platform_repo_files" {
   type        = map(string)
-  description = "Contents of the selected repo directories copied to the host."
+  description = "Contents of the Argo bootstrap and script directories copied to the host."
 }

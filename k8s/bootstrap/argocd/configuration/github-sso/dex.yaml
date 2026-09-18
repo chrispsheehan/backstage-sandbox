@@ -1,0 +1,7 @@
+connectors:
+  - type: github
+    id: github
+    name: GitHub
+    config:
+      clientID: $dex.github.clientID
+      clientSecret: $dex.github.clientSecret

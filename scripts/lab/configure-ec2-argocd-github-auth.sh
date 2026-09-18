@@ -9,15 +9,9 @@ fi
 aws_region="$1"
 parameter_prefix="${2%/}"
 argocd_url="${3%/}"
-temporary_dir="$(mktemp -d)"
-
-cleanup() {
-  rm -rf "${temporary_dir}"
-}
-trap cleanup EXIT
 umask 077
 
-for bin in aws base64 kubectl sed; do
+for bin in aws base64 kubectl; do
   command -v "${bin}" >/dev/null 2>&1 || {
     echo "Missing required binary: ${bin}" >&2
     exit 1
@@ -48,19 +42,16 @@ read_parameter() {
 github_client_id="$(read_parameter "${parameter_prefix}/github-client-id")"
 github_client_secret="$(read_parameter "${parameter_prefix}/github-client-secret")"
 
-sed \
-  -e "s|__ARGOCD_URL__|${argocd_url}|g" \
-  -e "s|__AUTH_GITHUB_CLIENT_ID__|${github_client_id}|g" \
-  /opt/backstage-sandbox/k8s/bootstrap/argocd/github-sso-configmap-ec2.yaml \
-  >"${temporary_dir}/github-sso-configmap.yaml"
-
+github_client_id_base64="$(printf '%s' "${github_client_id}" | base64 | tr -d '\n')"
 github_client_secret_base64="$(printf '%s' "${github_client_secret}" | base64 | tr -d '\n')"
 kubectl -n argocd patch secret argocd-secret --type merge \
-  --patch "{\"data\":{\"dex.github.clientSecret\":\"${github_client_secret_base64}\"}}"
+  --patch "{\"data\":{\"dex.github.clientID\":\"${github_client_id_base64}\",\"dex.github.clientSecret\":\"${github_client_secret_base64}\"}}"
+kubectl kustomize /opt/backstage-sandbox/k8s/bootstrap/argocd/configuration/github-sso \
+  | kubectl apply --server-side --force-conflicts -f -
+kubectl -n argocd patch configmap argocd-cm --type merge \
+  --patch "{\"data\":{\"url\":\"${argocd_url}\",\"admin.enabled\":\"false\"}}"
 kubectl apply --server-side --force-conflicts \
-  -f "${temporary_dir}/github-sso-configmap.yaml"
-kubectl apply --server-side --force-conflicts \
-  -f /opt/backstage-sandbox/k8s/bootstrap/argocd/rbac-ec2-admin.yaml
+  -f /opt/backstage-sandbox/k8s/bootstrap/argocd/configuration/rbac-admin.yaml
 
 kubectl -n argocd rollout restart deployment/argocd-dex-server deployment/argocd-server
 kubectl -n argocd rollout status deployment/argocd-dex-server --timeout=180s

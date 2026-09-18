@@ -1,19 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: test-this-website
+  name: crossplane-config
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  labels:
+    backstage.io/bootstrap-component: crossplane-config
+    backstage.io/git-source: "true"
 spec:
   project: default
-  source:
-    repoURL: https://github.com/chrispsheehan/backstage-sandbox.git
-    targetRevision: main
-    path: apps/test-this/crossplane
+  source: {}
   destination:
     server: https://kubernetes.default.svc
-    namespace: apps-test-this
+    namespace: crossplane-system
   syncPolicy:
     automated:
       prune: true
@@ -25,5 +23,4 @@ spec:
         factor: 2
         maxDuration: 1m
     syncOptions:
-      - CreateNamespace=true
       - SkipDryRunOnMissingResource=true

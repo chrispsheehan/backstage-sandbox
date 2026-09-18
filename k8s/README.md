@@ -5,11 +5,31 @@ This repo uses a deliberately split ownership model:
 - Manual bootstrap:
   - `k3d` cluster creation
   - Argo CD install
-  - Crossplane core install
+- Argo CD reconciliation:
+  - Crossplane core Helm release
+  - Crossplane AWS providers and environment-specific provider config
+  - Backstage and generated applications
 
 ## Directory Shape
 
-- `bootstrap/argocd/`: local Argo overrides and the Backstage `Application`.
+- `bootstrap/argocd/`: local and EC2 Argo configuration plus the Crossplane,
+  Backstage, and generated-application bootstrap definitions.
+- `bootstrap/argocd/applications/`: environment-neutral Argo CD `Application`
+  manifests.
+- `bootstrap/argocd/bases/`: shared Crossplane and later-stage application
+  bundles consumed by every environment.
+- `bootstrap/argocd/configuration/`: shared Argo CD GitHub SSO, admin RBAC,
+  and Kustomize build configuration.
+- `bootstrap/argocd/components/git-source/`: the single repository URL and
+  revision setting injected into all Git-backed bootstrap resources.
+- `bootstrap/argocd/components/environment-paths/`: shared replacement logic
+  that injects environment paths into the generic applications.
+- `bootstrap/argocd/overlays/{local,ec2}/settings.yaml`: the only Argo CD
+  bootstrap path differences between environments.
+- `bootstrap/argocd/overlays/{local,ec2}/{crossplane,applications}/`: the two
+  phase-specific entry points for each environment.
+- `bootstrap/argocd/overlays/{local,ec2}/platform/`: the genuine server
+  runtime difference: insecure local port-forwarding versus the EC2 NodePort.
 - `bootstrap/argocd/generated-applicationset.yaml`: repo-owned `ApplicationSet`
   that auto-discovers committed generated app definitions under `apps/*/argocd`.
 - `base/backstage/`: raw Backstage application manifests, without a database
@@ -30,25 +50,36 @@ This repo uses a deliberately split ownership model:
 1. `just local-setup`
 2. Run `just local-up` to deploy Backstage through Argo CD, or open the Argo CD UI on `http://localhost:8080` after infra bootstrap.
 
-The shared `scripts/lab/bootstrap-cluster.sh` script creates the `k3d` cluster,
-installs Argo CD, and installs Crossplane core. The local Just recipe then
-applies the AWS Crossplane providers and local Argo CD configuration.
+The shared `scripts/lab/bootstrap-cluster.sh` script creates the `k3d` cluster
+and installs Argo CD. The local Just recipe configures repository access, then
+`scripts/lab/register-crossplane-root.sh` submits one `crossplane-root`
+application. Bootstrap filters the environment render to apply only that seed;
+Argo then reconciles the complete same overlay, including its own definition
+and the three child applications for Crossplane core, the AWS providers, and
+the local provider configuration. Bootstrap does not wait for those
+applications to reconcile.
 `just local-up` builds/imports the Backstage image, configures
 repo access for Argo CD, and deploys the Backstage application into the
 cluster.
 
-On EC2, `scripts/aws/platform-bootstrap.sh platform` wraps the shared cluster
-bootstrap plus Argo CD authentication and Crossplane provider setup. Its
+The Backstage Deployment uses Argo CD sync wave `1`. In the local overlay,
+the disposable Postgres Deployment remains in the default wave `0`, so Argo
+waits for the database to become healthy before starting Backstage. The local
+deployment script also verifies Postgres readiness before restarting Backstage
+onto a newly imported image.
+
+On EC2, `scripts/aws/platform-bootstrap.sh platform` wraps the shared Argo-only
+cluster bootstrap, Argo CD authentication, and Argo-managed Crossplane setup. Its
 `applications` phase separately owns runtime Secrets, Argo CD application
 installation, and service verification. EC2 user data invokes both in order,
 but they remain separate retry and diagnostic boundaries.
 
-Crossplane bootstrap includes both the AWS family provider and the AWS S3
-provider, so generated S3 site apps can reconcile without additional manual
-provider installation after merge.
+The Crossplane provider application includes both the AWS family provider and
+the AWS S3 provider, so generated S3 site apps can reconcile without additional
+manual provider installation after merge.
 
-`just local-deploy-backstage` also renders and applies the repo-owned Argo CD
-`ApplicationSet` that scans `apps/*/argocd` on the current Git branch and
+`just local-deploy-backstage` also builds and applies the repo-owned Argo CD
+`ApplicationSet` that scans `apps/*/argocd` on `main` and
 applies those committed child `Application` manifests into the `argocd`
 namespace. Its Git generator polls once per minute, so later committed
 additions and removals do not require another `kubectl apply`.
@@ -61,13 +92,28 @@ Local private-repository authentication is handled by
 repository is public; the future private-repository integration points are recorded in the
 [EC2 infrastructure notes](../infra/README.md#private-github-repository).
 
-The tracked Argo CD application templates are rendered to standard input.
-`scripts/lab/deploy-argocd-apps.sh` applies the Backstage application and the
-generated-app discovery `ApplicationSet` for the local workflow.
-`scripts/lab/deploy-ec2-argocd-apps.sh` applies the EC2 Backstage application
-and delegates generated-app discovery to
-`scripts/lab/deploy-generated-applications.sh`. These scripts accept a
-repository URL and revision and do not create generated YAML files in the repo.
+The shared Git source is defined once in
+`bootstrap/argocd/components/git-source/kustomization.yaml`. Kustomize injects
+it into every Git-backed bootstrap `Application` and `ApplicationSet`; the
+shell scripts do not perform placeholder replacement. Change the `repoURL` or
+`targetRevision` literal in that component to move every bootstrap-managed
+application together.
+`scripts/lab/register-crossplane-root.sh` builds the selected local or EC2
+Crossplane entry point and uses the root's bootstrap label to submit only that
+`Application` after Argo CD itself is ready. On its first sync, the root adopts
+its own Git definition, the generated Git and environment settings ConfigMaps,
+and the three child applications. Each environment declares its Crossplane
+root, provider-config, and Backstage paths once in `settings.yaml`; the shared
+environment-path component injects them using native Kustomize replacements.
+It does not embed JSON patches or perform shell substitution.
+`scripts/lab/deploy-argocd-apps.sh` and
+`scripts/lab/deploy-ec2-argocd-apps.sh` build the corresponding Backstage and
+generated-application overlays directly.
+
+The environment overlays intentionally compose shared files above their own
+directories. `bootstrap/argocd/configuration/kustomize-build-options.yaml`
+enables Argo CD's Kustomize load option required for that layout; the bootstrap
+applies this shared configuration before registering the root application.
 
 On some local `k3d` setups, the generated kubeconfig server for
 `k3d-platform-lab` can be `https://0.0.0.0:<port>`. The bootstrap flow
@@ -83,6 +129,15 @@ If repo root `.env` contains `AUTH_GITHUB_CLIENT_ID` and
 `AUTH_GITHUB_CLIENT_SECRET`, bootstrap also configures Argo CD Dex to use the
 same GitHub OAuth app as local Backstage. That app must include callback URL
 `http://localhost:8080/api/dex/callback`.
+
+Local and EC2 use the same GitHub SSO and admin RBAC manifests. Both OAuth
+values are runtime keys in `argocd-secret`; the shared Dex configuration
+references them as `$dex.github.clientID` and `$dex.github.clientSecret`.
+The connector itself is standalone
+`configuration/github-sso/dex.yaml`; its Kustomization loads that file into
+the `dex.config` ConfigMap key rather than embedding YAML in a block scalar.
+Environment scripts set only the external URL and whether the built-in admin
+account remains enabled.
 
 Backstage's own GitHub OAuth credentials are not owned by the Argo CD
 application manifests. They are patched into
@@ -148,8 +203,8 @@ just local-argocd-repo-auth
 just local-deploy-backstage
 ```
 
-After that `ApplicationSet` is in place, merging a generated site PR into the
-tracked branch is enough for Argo CD to discover the committed
+After that `ApplicationSet` is in place, merging a generated site PR into
+`main` is enough for Argo CD to discover the committed
 `apps/<name>/argocd/application.yaml` path and create `<name>-website`
 automatically.
 
