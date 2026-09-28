@@ -189,6 +189,20 @@ Argo CD local auth is configured for convenience rather than strict isolation:
 - If this repo is private, Argo CD also needs repository credentials; use
   `gh auth login` locally.
 
+One GitHub OAuth app can serve local and EC2 Backstage and Argo CD. Configure
+the app with homepage URL `https://backstage.chrispsheehan.com` and these four
+authorization callback URLs:
+
+- `http://localhost:7007/api/auth/github/handler/frame`
+- `http://localhost:8080/api/dex/callback`
+- `https://backstage.chrispsheehan.com/api/auth/github/handler/frame`
+- `https://argocd.chrispsheehan.com/api/dex/callback`
+
+Create it from GitHub **Settings → Developer settings → OAuth Apps**, then put
+the generated client ID and client secret in repo root `.env` as
+`AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET`. This repository is
+wired for an OAuth app, not a GitHub App.
+
 You can reapply the GitHub SSO wiring without rebuilding the cluster:
 
 ```bash
@@ -214,7 +228,6 @@ automatically.
 obvious local-only values. It is committed on purpose:
 
 - the cluster is disposable
-- guest auth is enabled
 - there is no cloud access in the default lab
 - the values are only for local development
 

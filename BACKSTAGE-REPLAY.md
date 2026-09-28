@@ -12,12 +12,10 @@ GitHub-side setup for this repo:
 
 1. In GitHub, open `Settings` -> `Developer settings` -> `OAuth Apps`.
 2. Create a new OAuth app.
-3. Set `Homepage URL` to `http://localhost:7007`.
-4. Set `Authorization callback URL` to
-   `http://localhost:7007/api/auth/github/handler/frame`.
-5. If local Argo CD SSO is also enabled, add a second callback URL:
-   `http://localhost:8080/api/dex/callback`.
-6. Copy the resulting client ID and client secret into repo root `.env` as
+3. Set `Homepage URL` to `https://backstage.chrispsheehan.com`.
+4. Add the four authorization callback URLs documented in
+   `k8s/README.md#local-auth` for local and EC2 Backstage and Argo CD.
+5. Copy the resulting client ID and client secret into repo root `.env` as
    `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET`.
 
 1. In `backstage/app-config.yaml`, keep `app.baseUrl` at
@@ -56,6 +54,9 @@ GitHub-side setup for this repo:
 8. In `backstage/README.md`, keep the ignored nested README aligned with the
    cluster-only runtime model: `just local-up` deploys Backstage through Argo CD
    and Backstage is reached on `http://localhost:7007` through port-forwarding.
+   Preserve its `just install`, stale-lockfile recovery, direct k3d image
+   import, and generated S3 bucket-naming guidance as those behaviors remain
+   part of the root recipes and scaffolder contract.
 9. In `config/examples/org.yaml`, keep a `User` entity whose `metadata.name`
    matches the GitHub username that will sign in locally. The current repo
    expects `chrispsheehan`.

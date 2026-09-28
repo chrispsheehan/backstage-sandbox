@@ -7,7 +7,8 @@ These instructions apply to the entire repository.
 A local-first platform lab: `k3d` + Argo CD + Crossplane + Backstage, with an
 optional dev-only EC2/k3s deployment. It is intentionally ephemeral —
 rebuilding from scratch is the normal workflow, not an exception. See
-`README.md` for the full architecture and setup.
+`README.md` for the overview and quick start, then follow its links to the
+owning documentation for operational detail.
 
 ## Where To Look
 
@@ -39,6 +40,9 @@ capability areas just because they're nearby.
 
 **Docs**
 - Keep docs aligned with behavior changes.
+- Keep the root README concise and easy to scan. It is a landing page for the
+  project overview, quick start, common commands, and links to owning docs; do
+  not turn it into a comprehensive runbook or implementation reference.
 - Human-facing contracts live in the nearest owning README, not in `AGENTS.md` or the root README.
 - When reorganizing docs, add a short pointer in the root README to the owning nested README rather than inlining detail there.
 - When you remove detail from one doc, relocate it to the owning doc rather than dropping it — it can be shortened, but the guidance must stay findable somewhere.
