@@ -22,7 +22,9 @@ Read the nearest owning doc for the area you're touching before editing.
 | Repo-owned catalog data that overrides the scaffold's examples | `config/README.md` |
 | Minimal Crossplane bootstrap setup | `crossplane/README.md` |
 | Cluster bootstrap order, Argo CD ownership | `k8s/README.md` |
+| Shared local/EC2 bootstrap implementation | `scripts/lab/README.md` |
 | Optional dev AWS deployment | `infra/README.md` |
+| EC2 bootstrap phases and recovery | `scripts/aws/README.md` |
 | Backstage scaffolding / default-file questions | [backstage.io getting-started docs](https://backstage.io/docs/getting-started/) |
 
 Loading order: `AGENTS.md` → `README.md` → the one nested README for the

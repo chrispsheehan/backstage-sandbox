@@ -23,7 +23,8 @@ brew install just kubectl k3d node@22 gh
 ```
 
 Create `.env` from `.example.env` and add the GitHub OAuth credentials
-described in [Local authentication](k8s/README.md#local-auth). Then run:
+described in [GitHub authentication](k8s/README.md#github-authentication). Then
+run:
 
 ```bash
 just install    # First use only: scaffold Backstage and install dependencies

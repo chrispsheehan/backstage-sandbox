@@ -9,7 +9,7 @@ The caller must already have exactly one VPC with the configured exact `Name`
 tag and at least two subnets in distinct availability zones whose
 case-sensitive `Name` tags contain `public`. The complete human-facing network
 checklist lives in the
-[infrastructure README](../../../README.md#existing-network-prerequisite).
+[infrastructure README](../../../README.md#existing-network).
 
 The subnet classification does not make the database public. The RDS instance
 sets `publicly_accessible = false`, receives no public address, and attaches

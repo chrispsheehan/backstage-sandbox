@@ -14,7 +14,8 @@ GitHub-side setup for this repo:
 2. Create a new OAuth app.
 3. Set `Homepage URL` to `https://backstage.chrispsheehan.com`.
 4. Add the four authorization callback URLs documented in
-   `k8s/README.md#local-auth` for local and EC2 Backstage and Argo CD.
+   `k8s/README.md#github-authentication` for local and EC2 Backstage and Argo
+   CD.
 5. Copy the resulting client ID and client secret into repo root `.env` as
    `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET`.
 
