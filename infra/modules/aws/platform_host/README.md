@@ -1,50 +1,72 @@
 # Platform Host Module
 
-Creates the single-node dev platform host and its public ALB entry point. It
-consumes the platform and load-balancer security groups plus the instance
-profile owned by the separate `security` and `platform_role` stacks.
+Creates the disposable EC2 platform host and its public ALB entry point. The
+module consumes security groups from `security` and the instance profile from
+`platform_role`.
 
-The module discovers the existing VPC by exact `Name` tag, public subnets by
-`*public*` `Name` tag, and the existing public `chrispsheehan.com` Route 53
-hosted zone by name. It creates an internet-facing ALB across those subnets, an
-ACM certificate, and Backstage and Argo CD alias A records targeting the ALB.
-The HTTPS listener routes by hostname to separate target groups. EC2 user data
-installs Docker, kubectl, and k3d, then creates a k3d cluster with Argo CD.
-Bootstrap registers one Crossplane root application; Argo CD then creates the
-core, AWS-provider, and EC2 provider-config child applications from Git. k3d
-binds the Backstage and Argo CD NodePorts to host ports 30070 and 30443. The
-platform security group accepts those ports only from the ALB security group.
-Bootstrap verifies both services locally after Backstage rolls out.
-Before Argo CD deploys Backstage from the EC2 overlay, user data reads its
-backend secret, GitHub OAuth values, and RDS connection settings from SSM
-Parameter Store and creates the runtime, database, and ECR pull Secrets in
-Kubernetes. It also configures Argo CD's Dex
-GitHub connector with those OAuth values and its stable Route 53 URL, and
-disables Argo CD's built-in admin account on EC2. This module owns the Backstage
-and OAuth SecureStrings beneath a randomized SSM path; the database module owns
-the RDS SecureStrings beneath a separate randomized path. The paths change
-after a complete destroy so Parameter Store's delayed deletion does not
-block immediate recreation; the sensitive values are stored in encrypted
-Terraform state. Terraform generates the 64-character backend secret, and the
-database module generates the PostgreSQL password and passes only its parameter
-path and revision into this module; only the OAuth values come from `.env`.
-Database credentials are not embedded in user data or platform-host state.
+## Resources
 
-Terraform creates a private, encrypted bootstrap bucket with `force_destroy =
-true`, stages the complete `k8s/bootstrap/argocd/`, `scripts/aws/`, and
-`scripts/lab/` directories as one ZIP, and expands it at
-`/opt/backstage-sandbox`. No repository credentials are placed on the host.
+| Resource | Configuration |
+| --- | --- |
+| EC2 host | Single-node ARM64 host running Docker, k3d, Argo CD, Crossplane, and Backstage. |
+| Application Load Balancer | Internet-facing HTTPS listener with hostname routing for Backstage and Argo CD. |
+| ACM and Route 53 | Certificate and alias records in the existing `chrispsheehan.com` hosted zone. |
+| Bootstrap bucket | Private encrypted bucket containing the startup archive; `force_destroy` is enabled. |
+| SSM parameters | Randomized path containing the Backstage backend secret and GitHub OAuth values. |
+| Session document | Opens `just ec2-shell` directly as `ec2-user`. |
 
-User data runs the shared lab script as `ec2-user`, which owns the generated
-kubeconfig and has Docker access. The script can be rerun manually as that
-account. A module-owned Session document lets `just ec2-shell` start directly
-as `ec2-user` without changing the account-wide Session Manager preferences.
-User data keeps the SSM agent stopped during bootstrap and restarts it only
-after the application endpoints pass verification. Argo CD may still be
-reconciling Crossplane when SSM becomes `Online`.
+The module discovers the VPC by exact `Name` tag, public subnets by a
+`*public*` `Name` tag, and the existing hosted zone by name.
 
-Changing the copied files or user data replaces the disposable host. Any
-cluster and runtime data created manually on it are therefore ephemeral. The
-bootstrap bucket, its object, the ALB, ACM certificate, and DNS records are
-removed with this module. The existing hosted zone is only read and is never
-owned or destroyed.
+## Traffic
+
+| Route | Target |
+| --- | --- |
+| `backstage.chrispsheehan.com` | ALB → host port 30070 → Backstage NodePort |
+| `argocd.chrispsheehan.com` | ALB → host port 30443 → Argo CD HTTPS NodePort |
+
+The platform security group accepts both host ports only from the ALB security
+group. Bootstrap verifies both services locally before the host is considered
+ready.
+
+## Bootstrap
+
+Terraform packages these directories into the bootstrap archive:
+
+- `k8s/bootstrap/argocd/`
+- `scripts/aws/`
+- `scripts/lab/`
+
+The archive expands at `/opt/backstage-sandbox`; no repository credential is
+placed on the host. Bootstrap then:
+
+1. Installs Docker, kubectl, and k3d.
+2. Creates k3d and installs Argo CD.
+3. Registers the Crossplane root application.
+4. Creates runtime Secrets and deploys Backstage.
+
+Detailed phase and recovery behavior lives in
+[scripts/aws/README.md](../../../../scripts/aws/README.md).
+
+## Secret Ownership
+
+| Value | Owner and location |
+| --- | --- |
+| GitHub OAuth values | Supplied from `.env`; stored under the module's randomized SSM path. |
+| Backstage backend secret | Generated by this module and stored under the same path. |
+| PostgreSQL password | Generated by the database module; only its parameter path and revision cross the module boundary. |
+| Kubernetes runtime Secrets | Created during bootstrap from SSM and ECR credentials. |
+
+Sensitive values remain in encrypted Terraform state. Database credentials are
+not copied into EC2 user data or platform-host state. Randomized parameter paths
+avoid collisions with earlier parameters still completing deletion.
+
+## Lifecycle
+
+- User data runs Kubernetes work as `ec2-user`, which owns the kubeconfig and
+  has Docker access.
+- The SSM agent stays offline during bootstrap and returns after success or
+  failure. Crossplane may still be converging when the host becomes available.
+- Changes to user data or archived files replace the disposable host.
+- Destroying the module removes the host, bootstrap bucket, ALB, certificate,
+  and managed DNS records. It never owns or destroys the existing hosted zone.

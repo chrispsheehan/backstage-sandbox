@@ -1,23 +1,38 @@
 # ${{ values.siteTitle }}
 
-This folder is scaffolded by Backstage and is intended to be merged as
-`apps/${{ values.name }}`.
+Backstage generates this folder as `apps/${{ values.name }}`. After its pull
+request merges, Argo CD discovers and reconciles the application from `main`.
 
-Contents:
+## Contents
 
-- `src/index.html`: starter hello-world site content
-- `crossplane/`: S3 website bucket manifests for Crossplane
-- `argocd/application.yaml`: Argo CD child application manifest; the lab auto-discovers committed `apps/<name>/argocd` definitions through a repo-owned `ApplicationSet`
-- bucket name format: `${{ values.bucketNamePrefix }}-${{ values.awsAccountId }}-${{ values.region }}`
+| Path | Purpose |
+| --- | --- |
+| `src/index.html` | Starter site content. |
+| `crossplane/` | S3 website bucket resources. |
+| `argocd/application.yaml` | Argo CD child application discovered by the lab `ApplicationSet`. |
 
-Prerequisites:
+Bucket name:
+`${{ values.bucketNamePrefix }}-${{ values.awsAccountId }}-${{ values.region }}`
 
-- `just bootstrap`
-- `just local-crossplane-aws-auth ~/.aws/credentials`
-- install the shared `provider-aws-s3` package before applying these manifests
+## After Merge
 
-Suggested next steps after the PR merges:
+1. Start the lab with `just local-up` if it is not already running.
+2. Give local Crossplane AWS credentials:
 
-1. Install `provider-aws-s3` into the lab if it is not already installed.
-2. Confirm Argo CD created `${{ values.name }}-website` from the committed `apps/${{ values.name }}/argocd/application.yaml` definition.
-3. Sync the site source with `aws s3 sync apps/${{ values.name }}/src s3://${{ values.bucketName }} --delete`.
+   ```bash
+   just local-crossplane-aws-auth ~/.aws/credentials
+   ```
+
+3. Confirm Argo CD created `${{ values.name }}-website`:
+
+   ```bash
+   kubectl -n argocd get application ${{ values.name }}-website
+   ```
+
+4. Upload the site content after the bucket becomes ready:
+
+   ```bash
+   aws s3 sync apps/${{ values.name }}/src s3://${{ values.bucketName }} --delete
+   ```
+
+The normal lab bootstrap installs the required AWS S3 provider.

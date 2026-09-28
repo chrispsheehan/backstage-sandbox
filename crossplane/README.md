@@ -1,44 +1,36 @@
 # Crossplane
 
-Argo CD owns Crossplane core, the AWS provider packages, and the selected AWS
-`ClusterProviderConfig`. The imperative cluster bootstrap installs only k3d
-and Argo CD; `scripts/lab/register-crossplane-root.sh` then submits one
-`crossplane-root` seed `Application` and returns without waiting for Crossplane
-reconciliation. Argo CD reads the selected environment overlay from Git and
-manages its root definition plus the three child `Application` resources.
+Argo CD owns Crossplane core, the AWS providers, and one environment-specific
+`ClusterProviderConfig`. Cluster bootstrap submits only the `crossplane-root`
+seed; Argo CD reconciles everything below it from Git.
 
-The reconciliation order is:
+## Reconciliation
 
-1. `crossplane-core` installs Crossplane chart `2.3.4` from the stable chart
-   repository.
-2. `crossplane-providers` syncs the AWS family and S3 `Provider` resources
-   from this repository.
-3. `crossplane-config` syncs either the local Secret-backed or EC2
-   instance-role-backed `ClusterProviderConfig`.
+| Application | Responsibility |
+| --- | --- |
+| `crossplane-root` | Own the root definition and three child applications. |
+| `crossplane-core` | Install Crossplane chart `2.3.4` in `crossplane-system`. |
+| `crossplane-providers` | Install the Upbound AWS family and S3 providers. |
+| `crossplane-config` | Apply the local or EC2 `ClusterProviderConfig/default`. |
 
-The applications may initially reconcile out of order. Their automated retry
-policies and missing-resource dry-run settings allow Argo CD to converge as
-Crossplane and provider CRDs appear. Argo CD remains the owner after bootstrap,
-so drift and repository changes are reconciled automatically.
+The child applications can initially reconcile out of order. Automated retries
+and missing-resource dry-run settings allow them to converge as CRDs appear.
+Argo CD remains the owner and corrects later drift.
 
-Current scope:
+## Provider Scope
 
-- install Crossplane core into `crossplane-system`
-- install the Upbound AWS family provider
-- install the Upbound AWS S3 provider
-- apply one environment-specific `ClusterProviderConfig`
-- stop there
+| Provider | Purpose |
+| --- | --- |
+| AWS family | Shared AWS `ProviderConfig` APIs. |
+| AWS S3 | `Bucket`, `BucketPolicy`, `BucketPublicAccessBlock`, and `BucketWebsiteConfiguration` APIs used by generated sites. |
 
-The AWS family provider supplies the shared AWS `ProviderConfig` APIs. The S3
-provider adds the `Bucket`, `BucketPolicy`, `BucketPublicAccessBlock`, and
-`BucketWebsiteConfiguration` CRDs used by the repo's static-site template.
-Generated managed resources set `crossplane.io/poll-interval: "5m"`, so
-external S3 drift is checked every five minutes.
+Generated S3 resources use `crossplane.io/poll-interval: "5m"`, so Crossplane
+checks external drift every five minutes. The lab does not install other
+providers or create demonstration managed resources during bootstrap.
 
 ## Verify Provider Installation
 
-To observe convergence after `just local-setup` or `just local-up`, inspect the
-root application, its three child applications, and the two providers:
+After `just local-setup` or `just local-up`, run:
 
 ```bash
 kubectl -n argocd get applications crossplane-root crossplane-core crossplane-providers crossplane-config
@@ -48,57 +40,49 @@ kubectl get providers.pkg.crossplane.io
 Expected provider shape:
 
 ```text
-NAME                  INSTALLED   HEALTHY   PACKAGE                                              AGE
-provider-aws-s3       True        True      xpkg.upbound.io/upbound/provider-aws-s3:v2.7.1       <age>
-provider-family-aws   True        True      xpkg.upbound.io/upbound/provider-family-aws:v2.7.1   <age>
+NAME                  INSTALLED   HEALTHY   PACKAGE
+provider-aws-s3       True        True      xpkg.upbound.io/upbound/provider-aws-s3:v2.7.1
+provider-family-aws   True        True      xpkg.upbound.io/upbound/provider-family-aws:v2.7.1
 ```
 
-`INSTALLED=True` and `HEALTHY=True` confirm that the packages and controllers
-are ready. They do not prove that Crossplane can authenticate to AWS; that
-requires reconciling an AWS managed resource.
+`INSTALLED=True` and `HEALTHY=True` confirm package and controller readiness.
+They do not prove AWS authentication; that requires reconciling a managed
+resource.
 
-## Files
+## Layout
 
-- `providers/`: Argo-managed AWS family and S3 `Provider` resources
-- `providerconfigs/local/`: Secret-backed local `ClusterProviderConfig`
-- `providerconfigs/ec2/`: EC2 instance-role `ClusterProviderConfig`
-- `../k8s/bootstrap/argocd/applications/crossplane-core.yaml`: Crossplane Helm
-  application
-- `../k8s/bootstrap/argocd/applications/crossplane-providers.yaml`: provider
-  application base
-- `../k8s/bootstrap/argocd/applications/crossplane-config.yaml`: provider
-  configuration application base
-- `../k8s/bootstrap/argocd/applications/crossplane-root.yaml`: the one
-  imperative seed application; its selected Git overlay owns the child apps
-- `../k8s/bootstrap/argocd/components/git-source/kustomization.yaml`: the
-  single repository URL and revision setting used by Git-backed bootstrap apps
-- `../k8s/bootstrap/argocd/bases/crossplane/`: the shared root and three-child
-  application bundle
-- `../k8s/bootstrap/argocd/overlays/{local,ec2}/settings.yaml`: the only
-  environment-specific source paths
-- `../k8s/bootstrap/argocd/overlays/{local,ec2}/crossplane/`: the two thin
-  Crossplane entry points
-- `../scripts/lab/register-crossplane-root.sh`: registers the root application
+| Path | Purpose |
+| --- | --- |
+| `providers/` | AWS family and S3 `Provider` resources. |
+| `providerconfigs/local/` | Secret-backed local provider configuration. |
+| `providerconfigs/ec2/` | EC2 instance-profile provider configuration. |
+| `../k8s/bootstrap/argocd/applications/crossplane-*.yaml` | Root, core, provider, and config application definitions. |
+| `../k8s/bootstrap/argocd/bases/crossplane/` | Shared root and child-application bundle. |
+| `../k8s/bootstrap/argocd/overlays/{local,ec2}/crossplane/` | Environment entry points. |
 
-## Local AWS Auth
+The shared bootstrap and root-adoption flow is documented in
+[scripts/lab/README.md](../scripts/lab/README.md#crossplane-root-adoption).
 
-The local `ClusterProviderConfig` is Git-managed, but its AWS credential
-`Secret` remains runtime-managed and uncommitted. Copy your current local AWS
-CLI credentials into the Secret with:
+## AWS Authentication
+
+| Environment | Credential source | Runtime owner |
+| --- | --- | --- |
+| Local | AWS shared credentials file in `Secret/crossplane-system/aws-creds` | Local recipe |
+| EC2 | AWS SDK default chain through the EC2 instance profile | EC2 role |
+
+### Local
+
+Load the same credentials used by your AWS CLI:
 
 ```bash
 just local-crossplane-aws-auth ~/.aws/credentials
 ```
 
-That recipe:
+The recipe copies the file into repo-local lab state, creates or updates the
+runtime Secret, and leaves the cluster-wide `ClusterProviderConfig/default`
+under Argo CD ownership.
 
-- copies the supplied AWS credentials file verbatim into repo-local lab state
-- ensures the `crossplane-system` namespace exists while Argo CD reconciles
-  Crossplane asynchronously
-- creates or updates `Secret/crossplane-system/aws-creds`
-- leaves `ClusterProviderConfig/default` under Argo CD ownership
-
-The resulting provider config is cluster-wide, so managed resources reference:
+Managed resources reference it with:
 
 ```yaml
 spec:
@@ -107,15 +91,13 @@ spec:
     kind: ClusterProviderConfig
 ```
 
-## EC2 AWS Auth
+### EC2
 
-The EC2 `crossplane-config` application selects a
-`ClusterProviderConfig/default` with `credentials.source: PodIdentity`. In the
-Upbound AWS provider this selects the AWS SDK default credential chain without
-activating its IRSA token-file cache. Because this k3d deployment has no EKS
-Pod Identity endpoint, the chain obtains temporary credentials from the EC2
-instance profile through IMDSv2.
+The EC2 configuration uses `credentials.source: PodIdentity`. In this k3d
+deployment, that selects the AWS SDK default chain and obtains temporary
+credentials from the instance profile through IMDSv2.
 
-Do not use `None`: provider-aws treats it as the static-secret path and fails
-with empty credentials. Do not use `IRSA` without an injected web-identity
-token either, because provider-aws attempts to hash the absent token file.
+- Do not use `None`; provider-aws treats it as the static-secret path and fails
+  with empty credentials.
+- Do not use `IRSA` without an injected web-identity token; provider-aws tries
+  to hash the missing token file.
