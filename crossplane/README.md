@@ -72,7 +72,11 @@ The shared bootstrap and root-adoption flow is documented in
 
 ### Local
 
-Load the same credentials used by your AWS CLI:
+`just local-up` automatically loads `~/.aws/credentials` when that file exists.
+If it is absent, the platform still starts and the providers can become
+healthy, but AWS managed resources cannot authenticate or reconcile.
+
+Load the same credentials used by your AWS CLI when cloud access is needed:
 
 ```bash
 just local-crossplane-aws-auth ~/.aws/credentials
@@ -81,6 +85,9 @@ just local-crossplane-aws-auth ~/.aws/credentials
 The recipe copies the file into repo-local lab state, creates or updates the
 runtime Secret, and leaves the cluster-wide `ClusterProviderConfig/default`
 under Argo CD ownership.
+
+Set `AWS_SHARED_CREDENTIALS_FILE` before `just local-up` to select a different
+file automatically, or invoke the recipe directly at any time.
 
 Managed resources reference it with:
 

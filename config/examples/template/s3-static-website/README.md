@@ -17,7 +17,8 @@ Bucket name:
 ## After Merge
 
 1. Start the lab with `just local-up` if it is not already running.
-2. Give local Crossplane AWS credentials:
+2. If `just local-up` did not find `~/.aws/credentials`, give local Crossplane
+   an AWS credentials file:
 
    ```bash
    just local-crossplane-aws-auth ~/.aws/credentials

@@ -74,8 +74,20 @@ _start:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    aws_credentials_file="${AWS_SHARED_CREDENTIALS_FILE:-${HOME}/.aws/credentials}"
+    if [[ -r "${aws_credentials_file}" ]]; then
+        load_aws_credentials=true
+    else
+        load_aws_credentials=false
+        echo "No readable AWS credentials file found at ${aws_credentials_file}; continuing without local Crossplane AWS authentication."
+        echo "The platform will start, but AWS managed resources will not reconcile until credentials are loaded."
+        echo "Run 'just local-crossplane-aws-auth <credentials-file>' when needed."
+    fi
+
     just _bootstrap-cluster
-    just local-crossplane-aws-auth ~/.aws/credentials
+    if [[ "${load_aws_credentials}" == "true" ]]; then
+        just local-crossplane-aws-auth "${aws_credentials_file}"
+    fi
     just local-backstage-auth
     just local-build-backstage-image
     just local-deploy-backstage

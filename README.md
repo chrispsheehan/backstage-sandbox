@@ -35,6 +35,12 @@ just local-up   # Build and start the complete local lab
 the tracked files under `backstage-overrides/`. Run `just backstage-verify` to
 check for drift without changing the scaffold.
 
+Local AWS credentials are optional for starting the platform. When
+`~/.aws/credentials` exists, `just local-up` loads it for Crossplane. Otherwise
+the lab starts without cloud access; load a credentials file later with `just
+local-crossplane-aws-auth <credentials-file>` before reconciling AWS managed
+resources.
+
 `just local-up` bootstraps the cluster, installs Argo CD, lets Argo reconcile
 Crossplane, deploys Backstage, and starts both port-forwards:
 
@@ -68,9 +74,10 @@ for the expected result.
   them after merge.
 - Local services use port-forwarding rather than ingress, TLS, or external DNS.
 
-Local Crossplane authentication uses an explicitly loaded AWS credentials
-Secret. The optional EC2 lab uses its attached instance role instead. See
-[crossplane/README.md](crossplane/README.md) for both profiles.
+Local Crossplane authentication uses an AWS credentials Secret when one is
+loaded; the control plane can run without it. The optional EC2 lab uses its
+attached instance role instead. See [crossplane/README.md](crossplane/README.md)
+for both profiles.
 
 ## Common Commands
 

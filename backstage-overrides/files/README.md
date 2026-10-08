@@ -66,6 +66,11 @@ matching catalog user entity named `chrispsheehan`.
 The form requests `AWS_ACCOUNT_ID` explicitly and derives S3 bucket names as
 `<prefix>-<AWS_ACCOUNT_ID>-<region>`.
 
+The platform can start without local AWS credentials. `just local-up` loads
+`~/.aws/credentials` automatically when available; otherwise generated AWS
+resources wait until credentials are supplied with
+`just local-crossplane-aws-auth <credentials-file>`.
+
 ## Replay Notes
 
 `just install` replays tracked overrides automatically. Use the explicit
