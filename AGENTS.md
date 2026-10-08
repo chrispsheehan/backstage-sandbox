@@ -18,6 +18,7 @@ Read the nearest owning doc for the area you're touching before editing.
 | Area | Doc |
 | --- | --- |
 | Repo overview, setup, lab layout | `README.md` |
+| Forking or personalising the lab | `docs/personalisation/README.md` |
 | Backstage app and image build | `backstage/README.md` |
 | Repo-owned catalog data that overrides the scaffold's examples | `config/README.md` |
 | Minimal Crossplane bootstrap setup | `crossplane/README.md` |

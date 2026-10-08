@@ -95,6 +95,8 @@ Run `just --list` for the complete command reference.
 
 ## Documentation
 
+- [Personalising the lab](docs/personalisation/README.md): repository identity,
+  GitHub login, DNS, AWS region, and generated-resource changes for a fork.
 - [Backstage](backstage-overrides/files/README.md): cluster runtime, image
   builds, UI content, and scaffolder behavior.
 - [Catalog configuration](config/README.md): repo-owned catalog entities and
