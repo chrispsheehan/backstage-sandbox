@@ -1,23 +1,38 @@
 # Hello World
 
-This folder is scaffolded by Backstage and is intended to be merged as
-`apps/test-this`.
+Backstage generated this folder as `apps/test-this`. Argo CD discovers and
+reconciles the application from `main`.
 
-Contents:
+## Contents
 
-- `src/index.html`: starter hello-world site content
-- `crossplane/`: S3 website bucket manifests for Crossplane
-- `argocd/application.yaml`: Argo CD child application manifest; the lab auto-discovers committed `apps/<name>/argocd` definitions through a repo-owned `ApplicationSet`
-- bucket name format: `test-this-123456789012-eu-west-2`
+| Path | Purpose |
+| --- | --- |
+| `src/index.html` | Starter site content. |
+| `crossplane/` | S3 website bucket resources. |
+| `argocd/application.yaml` | Argo CD child application discovered by the lab `ApplicationSet`. |
 
-Prerequisites:
+Bucket name: `test-this-700060376888-eu-west-2`
 
-- `just bootstrap`
-- `just local-crossplane-aws-auth ~/.aws/credentials`
-- install the shared `provider-aws-s3` package before applying these manifests
+## After Merge
 
-Suggested next steps after the PR merges:
+1. Start the lab with `just local-up` if it is not already running.
+2. If `just local-up` did not find `~/.aws/credentials`, give local Crossplane
+   an AWS credentials file:
 
-1. Install `provider-aws-s3` into the lab if it is not already installed.
-2. Confirm Argo CD created `test-this-website` from the committed `apps/test-this/argocd/application.yaml` definition.
-3. Sync the site source with `aws s3 sync apps/test-this/src s3://test-this-123456789012-eu-west-2 --delete`.
+   ```bash
+   just local-crossplane-aws-auth ~/.aws/credentials
+   ```
+
+3. Confirm Argo CD created `test-this-website`:
+
+   ```bash
+   kubectl -n argocd get application test-this-website
+   ```
+
+4. Upload the site content after the bucket becomes ready:
+
+   ```bash
+   aws s3 sync apps/test-this/src s3://test-this-700060376888-eu-west-2 --delete
+   ```
+
+The normal lab bootstrap installs the required AWS S3 provider.

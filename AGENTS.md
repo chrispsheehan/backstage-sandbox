@@ -62,7 +62,8 @@ capability areas just because they're nearby.
 - Before closing a task that changed anything under `backstage/`, run
   `just backstage-verify` and confirm `backstage-overrides/README.md` still
   matches the current behavior.
-- Catalog example data lives in `config/examples/`, not `backstage/examples/`; `just install` regenerates a `backstage/examples/` alongside the scaffold, but it is unused.
+- Catalog example data lives in `config/examples/`, not `backstage/examples/`;
+  the replay step removes the scaffold's unused generated copy.
 - Keep setup notes, deployment instructions, and runbooks out of the scaffold — put them in `README.md` or `backstage/README.md`.
 
 ## Design Principles

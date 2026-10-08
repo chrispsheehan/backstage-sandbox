@@ -18,6 +18,11 @@ the override set focused: prefer tracked configuration elsewhere in the repo,
 and add generated-code overrides only when configuration cannot provide the
 same behavior.
 
+The replay also removes scaffold artifacts that this cluster-only workflow
+does not use: `app-config.compose.yaml`, `app-config.dev.yaml`, and the
+generated `backstage/examples/` directory. Catalog data is owned under the
+tracked root `config/` directory instead.
+
 ## Preserved Customizations
 
 1. `backstage/app-config.yaml` keeps `app.baseUrl` at

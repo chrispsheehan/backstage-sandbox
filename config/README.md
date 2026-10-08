@@ -19,6 +19,6 @@ Generated-scaffold source overrides live separately under
   causes Backstage to issue invalid namespaced requests for Crossplane's
   cluster-scoped package APIs.
 
-When `just install` regenerates `backstage/`, it will recreate a fresh
-`backstage/examples/` alongside it; that copy is unused and can be ignored or
-deleted, since the catalog is configured to read from here instead.
+When `just install` regenerates `backstage/`, the upstream generator creates a
+fresh `backstage/examples/` alongside it. The replay step removes that unused
+copy because the catalog is configured to read from here instead.
