@@ -16,10 +16,13 @@ install:
     fi
 
     cd {{ PROJECT_DIR }}
+    created_scaffold=false
     if [[ ! -e "{{ PROJECT_DIR }}/backstage" ]]; then
         printf '%s\n' backstage \
           | npx --yes @backstage/create-app@{{ BACKSTAGE_CREATE_APP_VERSION }} \
-              --path "{{ PROJECT_DIR }}/backstage"
+              --path "{{ PROJECT_DIR }}/backstage" \
+              --skip-install
+        created_scaffold=true
     elif [[ ! -f "{{ PROJECT_DIR }}/backstage/backstage.json" ]]; then
         echo "Existing backstage/ is not a complete scaffold; move or remove it before retrying." >&2
         exit 1
@@ -28,6 +31,12 @@ install:
     fi
 
     just backstage-replay
+    if [[ "${created_scaffold}" == "true" ]]; then
+        (
+            cd "{{ PROJECT_DIR }}/backstage"
+            yarn install
+        )
+    fi
     just backstage-verify
 
 # Apply the tracked repo overrides to an existing Backstage scaffold.

@@ -20,12 +20,14 @@ Local dev signs in with GitHub OAuth. Set `AUTH_GITHUB_CLIENT_ID` and
 OAuth app callback URL as
 `http://localhost:7007/api/auth/github/handler/frame`.
 
-`just install` creates the pinned upstream scaffold when it is missing, applies
-the repo-owned files from `backstage-overrides/`, and verifies the result. It is
-safe to rerun against an existing scaffold. Node 22 or 24 is required for
-initial generation; the recipe adds Homebrew's keg-only `node@22` to `PATH`
-when present. Normal cluster image builds use Docker instead and verify the
-tracked overrides before building.
+`just install` creates the pinned upstream scaffold without installing
+dependencies, applies the repo-owned files from `backstage-overrides/`, then
+installs dependencies and verifies the result. This order ensures the tracked
+package resolutions are active during installation. It is safe to rerun
+against an existing scaffold. Node 22 or 24 is required for initial generation;
+the recipe adds Homebrew's keg-only `node@22` to `PATH` when present. Normal
+cluster image builds use Docker instead and verify the tracked overrides before
+building.
 
 ## Image Builds
 

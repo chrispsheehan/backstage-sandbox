@@ -4,9 +4,11 @@ The `backstage/` application is generated and intentionally ignored by Git.
 This directory tracks the repo-owned files that must be restored on top of the
 pinned upstream scaffold and the contract those files implement.
 
-`just install` creates the scaffold when it is missing, applies these files,
-and verifies the result. Local and EC2 image builds run the same verification
-before building. For an existing scaffold, use:
+`just install` creates the scaffold without installing dependencies, applies
+these files, installs dependencies, and verifies the result. Applying the
+overrides first ensures the dependency install uses the repo's package
+resolutions. Local and EC2 image builds run the same verification before
+building. For an existing scaffold, use:
 
 ```bash
 just backstage-replay
@@ -24,22 +26,25 @@ directory instead.
 
 ## Preserved Customisations
 
-1. `backstage/app-config.yaml` keeps `app.baseUrl` at
+1. `backstage/package.json` pins `@yarnpkg/core` to `4.9.1` until the broken
+   `4.9.2` release, which refers to a patch file absent from its published
+   package, is no longer selected transitively.
+2. `backstage/app-config.yaml` keeps `app.baseUrl` at
    `http://localhost:7007`, keeps `integrations.github` as a host-only entry for
    `github.com`, sets `auth.environment: production`, disables guest auth with
    `guest: null`, configures the GitHub provider from
    `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` with the
    `usernameMatchingUserEntityName` resolver, requires per-user scaffolder SCM
    credentials, and points the catalog at repo-owned data under `config/`.
-2. `backstage/packages/app/src/App.tsx` overrides `sign-in-page:app` with one
+3. `backstage/packages/app/src/App.tsx` overrides `sign-in-page:app` with one
    GitHub provider instead of the scaffold's guest provider, and enables the
    catalog, Kubernetes, navigation, and home modules.
-3. `backstage/packages/app/src/modules/home/homeModule.tsx` includes the local
+4. `backstage/packages/app/src/modules/home/homeModule.tsx` includes the local
    Argo CD link in the onboarding card.
-4. `backstage/packages/backend/src/index.ts` registers
+5. `backstage/packages/backend/src/index.ts` registers
    `@backstage/plugin-auth-backend-module-github-provider` alongside the auth
    backend.
-5. `backstage/README.md` documents the cluster-only runtime, pinned scaffold
+6. `backstage/README.md` documents the cluster-only runtime, pinned scaffold
    workflow, stale-lockfile recovery, direct k3d image import, and generated S3
    bucket naming.
 

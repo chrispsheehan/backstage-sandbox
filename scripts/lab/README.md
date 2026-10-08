@@ -67,8 +67,10 @@ Git-backed bootstrap application together.
 Local deployment behaviour:
 
 - PostgreSQL uses sync wave `0`; Backstage uses sync wave `1`.
-- The script verifies PostgreSQL readiness before restarting Backstage onto a
-  newly imported image.
+- The script verifies PostgreSQL readiness before waiting for Backstage. On a
+  fresh deployment it lets the first pod finish database migrations without a
+  competing restart; when a healthy deployment already exists, it restarts
+  Backstage onto the newly imported image.
 - The generated-app `ApplicationSet` discovers committed definitions under
   `apps/*/argocd` on `main`.
 
