@@ -64,7 +64,7 @@ Git-backed bootstrap application together.
 
 ## Application Deployment
 
-Local deployment behavior:
+Local deployment behaviour:
 
 - PostgreSQL uses sync wave `0`; Backstage uses sync wave `1`.
 - The script verifies PostgreSQL readiness before restarting Backstage onto a
@@ -72,7 +72,7 @@ Local deployment behavior:
 - The generated-app `ApplicationSet` discovers committed definitions under
   `apps/*/argocd` on `main`.
 
-EC2 deployment behavior:
+EC2 deployment behaviour:
 
 - Runtime Secrets are created before application deployment.
 - Backstage rollout failures emit Argo CD state, Kubernetes objects, events,

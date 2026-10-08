@@ -98,7 +98,7 @@ Run `just --list` for the complete command reference.
 - [Personalising the lab](docs/personalisation/README.md): repository identity,
   GitHub login, DNS, AWS region, and generated-resource changes for a fork.
 - [Backstage](backstage-overrides/files/README.md): cluster runtime, image
-  builds, UI content, and scaffolder behavior.
+  builds, UI content, and scaffolder behaviour.
 - [Catalog configuration](config/README.md): repo-owned catalog entities and
   scaffold-example overrides.
 - [Crossplane](crossplane/README.md): installation, provider verification, and
@@ -108,5 +108,5 @@ Run `just --list` for the complete command reference.
 - [AWS infrastructure](infra/README.md): optional EC2 deployment, security,
   costs, prerequisites, and Terragrunt commands.
 - [Backstage scaffold overrides](backstage-overrides/README.md): tracked files,
-  preserved behavior, verification, and upgrade guidance for the ignored
+  preserved behaviour, verification, and upgrade guidance for the ignored
   scaffold.

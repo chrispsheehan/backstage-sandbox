@@ -6,11 +6,7 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_dir="$(cd -- "${script_dir}/../.." && pwd)"
 overrides_dir="${project_dir}/backstage-overrides/files"
 backstage_dir="${project_dir}/backstage"
-obsolete_paths=(
-  "app-config.compose.yaml"
-  "app-config.dev.yaml"
-  "examples"
-)
+generated_examples_dir="${backstage_dir}/examples"
 
 if [[ "${mode}" != "apply" && "${mode}" != "check" ]]; then
   echo "Usage: $0 [apply|check]" >&2
@@ -31,16 +27,13 @@ if [[ ! -d "${overrides_dir}" ]]; then
 fi
 
 failed=0
-for relative_path in "${obsolete_paths[@]}"; do
-  target_path="${backstage_dir}/${relative_path}"
-  if [[ "${mode}" == "apply" && -e "${target_path}" ]]; then
-    rm -rf -- "${target_path}"
-    echo "Removed obsolete backstage/${relative_path}"
-  elif [[ "${mode}" == "check" && -e "${target_path}" ]]; then
-    echo "Obsolete scaffold artifact exists: backstage/${relative_path}" >&2
-    failed=1
-  fi
-done
+if [[ "${mode}" == "apply" && -e "${generated_examples_dir}" ]]; then
+  rm -rf -- "${generated_examples_dir}"
+  echo "Removed unused backstage/examples"
+elif [[ "${mode}" == "check" && -e "${generated_examples_dir}" ]]; then
+  echo "Unused scaffold examples exist: backstage/examples" >&2
+  failed=1
+fi
 
 while IFS= read -r -d '' source_file; do
   relative_path="${source_file#"${overrides_dir}/"}"

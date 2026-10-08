@@ -16,14 +16,13 @@ just backstage-verify
 Files under `files/` mirror their destination paths below `backstage/`. Keep
 the override set focused: prefer tracked configuration elsewhere in the repo,
 and add generated-code overrides only when configuration cannot provide the
-same behavior.
+same behaviour.
 
-The replay also removes scaffold artifacts that this cluster-only workflow
-does not use: `app-config.compose.yaml`, `app-config.dev.yaml`, and the
-generated `backstage/examples/` directory. Catalog data is owned under the
-tracked root `config/` directory instead.
+The replay also removes the generated `backstage/examples/` directory because
+this cluster-only workflow reads catalog data from the tracked root `config/`
+directory instead.
 
-## Preserved Customizations
+## Preserved Customisations
 
 1. `backstage/app-config.yaml` keeps `app.baseUrl` at
    `http://localhost:7007`, keeps `integrations.github` as a host-only entry for
@@ -69,7 +68,7 @@ GitHub-side setup remains manual:
 1. In GitHub, open `Settings` → `Developer settings` → `OAuth Apps`.
 2. Create a new OAuth app.
 3. Set `Homepage URL` to `https://backstage.chrispsheehan.com`.
-4. Add the four authorization callback URLs documented in
+4. Add the four authorisation callback URLs documented in
    `k8s/README.md#github-authentication` for local and EC2 Backstage and Argo
    CD.
 5. Copy the resulting client ID and client secret into repo root `.env` as

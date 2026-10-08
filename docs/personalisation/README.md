@@ -19,8 +19,9 @@ environment.
 5. Update or remove existing definitions under `apps/*/argocd/`. They are
    committed application instances and are not changed by editing the template.
 
-Private repositories also require `gh auth login` locally. The unattended EC2
-workflow currently expects a public repository.
+The local workflow requires `gh auth login` for repository credentials,
+including when the repository is public. The unattended EC2 workflow currently
+expects a public repository.
 
 ## GitHub User And OAuth
 
@@ -53,10 +54,9 @@ does not require a committed account ID. Run `just ec2-push-image` to publish to
 the new account and apply the ECR image selection it prints for
 `k8s/overlays/ec2/backstage/kustomization.yaml`.
 
-The committed `apps/test-this/` example is different: its bucket name, policy
-ARN, account ID, region, and source repository are rendered values. Remove it
-if the demo is not wanted. If it is retained, regenerating it through Backstage
-is safer than editing those values independently.
+Generated applications committed under `apps/` contain rendered bucket names,
+policy ARNs, account IDs, regions, and source repositories. Regenerating them
+through Backstage is safer than editing those values independently.
 
 Set the default region for future S3 website applications in
 `config/examples/template/template.yaml`. The form still requests the target

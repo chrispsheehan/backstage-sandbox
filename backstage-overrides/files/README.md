@@ -58,6 +58,10 @@ Website PR template opens a pull request against this repo that adds
 `apps/<name>/src/index.html` plus Crossplane and Argo CD manifests for a simple
 S3-backed website.
 
+The generated bucket is publicly readable and uses `forceDestroy: true`.
+Removing the application can therefore delete the bucket and all of its
+objects. The template is intended only for disposable public content.
+
 The template requests the signed-in user's GitHub OAuth token and uses that to
 create the branch and pull request. It is restricted to
 `github.com/chrispsheehan/backstage-sandbox`, and local sign-in expects a
@@ -76,4 +80,4 @@ resources wait until credentials are supplied with
 `just install` replays tracked overrides automatically. Use the explicit
 `just backstage-replay` command to restore them and `just backstage-verify` to
 check for drift. The tracked `backstage-overrides/README.md` records the
-behavior preserved by that workflow.
+behaviour preserved by that workflow.

@@ -14,6 +14,10 @@ request merges, Argo CD discovers and reconciles the application from `main`.
 Bucket name:
 `${{ values.bucketNamePrefix }}-${{ values.awsAccountId }}-${{ values.region }}`
 
+> **Warning:** These manifests make the bucket's objects publicly readable and
+> set `forceDestroy: true`. Removing the application can delete the bucket and
+> every object in it. Use this template only for disposable public content.
+
 ## After Merge
 
 1. Start the lab with `just local-up` if it is not already running.

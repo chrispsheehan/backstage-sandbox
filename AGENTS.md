@@ -42,12 +42,12 @@ capability areas just because they're nearby.
   scalar (`|` or `|-`).
 
 **Docs**
-- Keep docs aligned with behavior changes.
+- Keep docs aligned with behaviour changes.
 - Keep the root README concise and easy to scan. It is a landing page for the
   project overview, quick start, common commands, and links to owning docs; do
   not turn it into a comprehensive runbook or implementation reference.
 - Human-facing contracts live in the nearest owning README, not in `AGENTS.md` or the root README.
-- When reorganizing docs, add a short pointer in the root README to the owning nested README rather than inlining detail there.
+- When reorganising docs, add a short pointer in the root README to the owning nested README rather than inlining detail there.
 - When you remove detail from one doc, relocate it to the owning doc rather than dropping it — it can be shortened, but the guidance must stay findable somewhere.
 - Contracts for changes under ignored scaffold paths must live in a tracked
   owning README outside those ignored paths.
@@ -56,13 +56,13 @@ capability areas just because they're nearby.
 **`backstage/` scaffold**
 - Treat `backstage/packages/` and `backstage/plugins/` as upgrade-sensitive generated code.
 - Don't edit them unless the user explicitly asks, or the change is a minimal backend registration line (e.g. `backend.add(...)`).
-- Before touching scaffold code, check whether the same behavior is achievable via the `backstage/app-config*.yaml` layers, `config/`, `k8s/`, or root docs instead.
+- Before touching scaffold code, check whether the same behaviour is achievable via the `backstage/app-config*.yaml` layers, `config/`, `k8s/`, or root docs instead.
 - Any change made anywhere under `backstage/` must be called out in the final
   response and represented by the tracked source and contract under
   `backstage-overrides/`.
 - Before closing a task that changed anything under `backstage/`, run
   `just backstage-verify` and confirm `backstage-overrides/README.md` still
-  matches the current behavior.
+  matches the current behaviour.
 - Catalog example data lives in `config/examples/`, not `backstage/examples/`;
   the replay step removes the scaffold's unused generated copy.
 - Keep setup notes, deployment instructions, and runbooks out of the scaffold — put them in `README.md` or `backstage/README.md`.
