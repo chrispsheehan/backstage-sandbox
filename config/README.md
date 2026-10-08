@@ -3,6 +3,9 @@
 Repo-owned Backstage configuration that lives outside `backstage/` so it
 survives `just install` recreating the scaffold from scratch.
 
+Generated-scaffold source overrides live separately under
+`backstage-overrides/`; `just install` applies and verifies them automatically.
+
 - `examples/` overrides the scaffold's default catalog demo data
   (`entities.yaml`, `org.yaml`, `template/`). `backstage/app-config.yaml`
   points its catalog locations here instead of the scaffold's own

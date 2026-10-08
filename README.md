@@ -27,9 +27,13 @@ described in [GitHub authentication](k8s/README.md#github-authentication). Then
 run:
 
 ```bash
-just install    # First use only: scaffold Backstage and install dependencies
+just install    # Create the pinned scaffold and apply tracked repo overrides
 just local-up   # Build and start the complete local lab
 ```
+
+`just install` is safe to rerun: it reuses an existing scaffold and restores
+the tracked files under `backstage-overrides/`. Run `just backstage-verify` to
+check for drift without changing the scaffold.
 
 `just local-up` bootstraps the cluster, installs Argo CD, lets Argo reconcile
 Crossplane, deploys Backstage, and starts both port-forwards:
@@ -74,6 +78,7 @@ Secret. The optional EC2 lab uses its attached instance role instead. See
 | --- | --- |
 | `just local-up` | Start the complete lab and both UI port-forwards. |
 | `just local-setup` | Bootstrap k3d, Argo CD, and Crossplane without Backstage. |
+| `just backstage-verify` | Check that the ignored scaffold matches the tracked overrides. |
 | `just local-deploy-backstage` | Refresh the Backstage deployment without recreating the cluster. |
 | `just local-crossplane-aws-auth ~/.aws/credentials` | Give local Crossplane AWS credentials. |
 | `just local-stop` | Stop the cluster without deleting it. |
@@ -83,8 +88,8 @@ Run `just --list` for the complete command reference.
 
 ## Documentation
 
-- [Backstage](backstage/README.md): cluster runtime, image builds, UI content,
-  and scaffolder behavior.
+- [Backstage](backstage-overrides/files/README.md): cluster runtime, image
+  builds, UI content, and scaffolder behavior.
 - [Catalog configuration](config/README.md): repo-owned catalog entities and
   scaffold-example overrides.
 - [Crossplane](crossplane/README.md): installation, provider verification, and
@@ -93,5 +98,6 @@ Run `just --list` for the complete command reference.
   and local authentication.
 - [AWS infrastructure](infra/README.md): optional EC2 deployment, security,
   costs, prerequisites, and Terragrunt commands.
-- [Backstage replay notes](BACKSTAGE-REPLAY.md): changes to restore after
-  regenerating the ignored Backstage scaffold.
+- [Backstage scaffold overrides](backstage-overrides/README.md): tracked files,
+  preserved behavior, verification, and upgrade guidance for the ignored
+  scaffold.
