@@ -42,6 +42,12 @@ importing, the loader compares the Docker image ID with every running k3d
 server and agent node; it skips the import when every workload node already has
 the exact image.
 
+Native production dependencies are compiled in an intermediate image stage.
+The final runtime image contains the resulting dependencies but not Python,
+compilers, development headers, or other build-only packages.
+Only the backend workspace's production dependencies are installed; the
+frontend is already compiled and embedded as static assets.
+
 ## What Shows Up
 
 The tracked cluster config in `k8s/base/backstage/app-config.kubernetes.yaml`
