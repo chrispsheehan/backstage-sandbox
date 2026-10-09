@@ -13,7 +13,7 @@ configuration.
 | `register-crossplane-root.sh` | Submit the selected environment's Crossplane root seed. |
 | `deploy-argocd-apps.sh` | Apply local Backstage and generated-app definitions, then verify rollout. |
 | `deploy-ec2-argocd-apps.sh` | Apply EC2 application definitions and print bounded failure diagnostics. |
-| `load-backstage-image.sh` | Import `backstage-lab:dev` directly into local k3d. |
+| `load-backstage-image.sh` | Import `backstage-lab:dev` directly into local k3d unless every workload node already has the exact Docker image ID. |
 | `configure-ec2-argocd-github-auth.sh` | Read OAuth values from SSM and configure EC2 Argo CD login. |
 | `configure-ec2-backstage-secrets.sh` | Create runtime Backstage, RDS, and ECR pull Secrets. |
 | `verify-ec2-services.sh` | Check Backstage and Argo CD through their host-bound ports. |

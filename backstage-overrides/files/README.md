@@ -37,7 +37,10 @@ the build refreshes the lockfile in a disposable Node 24 container and retries.
 
 The image is large enough that the default `k3d` tools-node import path can be
 killed during `docker save` on some machines. The build uses
-`k3d image import --mode direct` to avoid that extra tarball step.
+`k3d image import --mode direct` to avoid that extra tarball step. Before
+importing, the loader compares the Docker image ID with every running k3d
+server and agent node; it skips the import when every workload node already has
+the exact image.
 
 ## What Shows Up
 
