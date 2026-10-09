@@ -58,7 +58,7 @@ in the READMEs under [`modules/aws/`](modules/aws/).
 
 - Terraform 1.11 or newer, Terragrunt, AWS CLI, `jq`, `gh`, and `just`
 - Docker Buildx and a running Docker daemon when publishing an image
-- local AWS credentials authorized to manage EC2, ELBv2, ACM, ECR, RDS, IAM,
+- local AWS credentials authorised to manage EC2, ELBv2, ACM, ECR, RDS, IAM,
   SSM, Route 53 records, and the Terragrunt state bucket
 - `AWS_REGION=eu-west-2`, unless the default is suitable
 - repo-root `.env` values for `AUTH_GITHUB_CLIENT_ID` and
@@ -114,7 +114,7 @@ EC2 user data runs three named phases:
 
 Argo CD reads authoritative application state from Git. The EC2 archive only
 contains what is needed before Argo CD starts. See the
-[EC2 bootstrap runbook](../scripts/aws/README.md) for phase behavior,
+[EC2 bootstrap runbook](../scripts/aws/README.md) for phase behaviour,
 diagnostics, and manual recovery.
 
 ## Commands
@@ -134,7 +134,7 @@ diagnostics, and manual recovery.
 The image version must be a 7–40 character lowercase Git hash. Publishing
 applies the ECR stack, authenticates Docker, pushes
 `<repository-url>:<commit>`, and prints the exact overlay change to commit.
-ECR authorization tokens expire after 12 hours; the bootstrap runbook explains
+ECR authorisation tokens expire after 12 hours; the bootstrap runbook explains
 how to refresh an existing host.
 
 ## Access And Authentication
@@ -217,7 +217,7 @@ Pricing sources: [EC2](https://aws.amazon.com/ec2/pricing/on-demand/),
   group.
 - RDS has no public address and accepts PostgreSQL only from the EC2 security
   group.
-- Runtime secrets live in randomized SSM parameter paths and runtime-only
+- Runtime secrets live in randomised SSM parameter paths and runtime-only
   Kubernetes Secrets. OAuth values originate in `.env`; Terraform generates
   the Backstage backend secret and database password.
 - The EC2 instance profile can download the bootstrap archive, pull the lab

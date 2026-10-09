@@ -23,7 +23,7 @@ destroy path.
 
 Terraform generates the database password and owns five `SecureString`
 parameters for the host, port, database, username, and password beneath a
-randomized `/${base_name}/database/<id>` path. It outputs that path and an
+randomised `/${base_name}/database/<id>` path. It outputs that path and an
 opaque parameter revision to the `platform_host` stack, rather than exposing
 the password across the Terragrunt module boundary. The password remains in
 the database module's encrypted Terraform state but not in Git, EC2 user data,

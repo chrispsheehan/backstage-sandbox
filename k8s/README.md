@@ -44,7 +44,7 @@ committed application definition creates the corresponding child
 
 Crossplane provider details and verification commands live in
 [crossplane/README.md](../crossplane/README.md). Script-level bootstrap,
-Kustomize, and recovery behavior lives in the
+Kustomize, and recovery behaviour lives in the
 [shared lab runbook](../scripts/lab/README.md).
 
 ## Environment Differences
@@ -93,13 +93,13 @@ AUTH_GITHUB_CLIENT_SECRET=...
 
 This repository expects an OAuth app, not a GitHub App.
 
-Local authentication behavior:
+Local authentication behaviour:
 
 - Authenticated GitHub users receive `role:admin` in this disposable lab.
 - The built-in Argo CD `admin` account remains available locally.
 - Backstage and Argo CD use the same OAuth app with separate callbacks.
-- Private repositories require local GitHub CLI authentication from
-  `gh auth login` so Argo CD can receive repository credentials.
+- The local workflow requires GitHub CLI authentication from `gh auth login` so
+  Argo CD can receive repository credentials, including for public repositories.
 
 Refresh authentication without rebuilding the cluster:
 
@@ -121,8 +121,9 @@ The shared SSO configuration maps settings as follows:
 ## Secrets
 
 The local Backstage overlay commits obvious demo PostgreSQL credentials. This
-is intentional because the cluster is disposable, has no default cloud access,
-and is limited to local development.
+is intentional because the cluster is disposable and limited to local
+development. Cloud access is optional: `just local-up` loads local AWS
+credentials when available, but the default lab has no AWS managed resources.
 
 Backstage and Argo CD OAuth credentials are runtime-managed from `.env`; they
 are not committed as GitOps Secrets. The local recipes refresh them before

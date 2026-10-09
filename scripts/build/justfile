@@ -12,6 +12,8 @@ _check-backstage-image-build mode:
         exit 1
     fi
 
+    just --justfile "{{ BUILD_PROJECT_DIR }}/justfile" backstage-verify
+
     command -v docker >/dev/null 2>&1 || {
         echo "Missing required binary: docker" >&2
         exit 1

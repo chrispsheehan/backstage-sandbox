@@ -3,6 +3,9 @@
 Repo-owned Backstage configuration that lives outside `backstage/` so it
 survives `just install` recreating the scaffold from scratch.
 
+Generated-scaffold source overrides live separately under
+`backstage-overrides/`; `just install` applies and verifies them automatically.
+
 - `examples/` overrides the scaffold's default catalog demo data
   (`entities.yaml`, `org.yaml`, `template/`). `backstage/app-config.yaml`
   points its catalog locations here instead of the scaffold's own
@@ -16,6 +19,6 @@ survives `just install` recreating the scaffold from scratch.
   causes Backstage to issue invalid namespaced requests for Crossplane's
   cluster-scoped package APIs.
 
-When `just install` regenerates `backstage/`, it will recreate a fresh
-`backstage/examples/` alongside it; that copy is unused and can be ignored or
-deleted, since the catalog is configured to read from here instead.
+When `just install` regenerates `backstage/`, the upstream generator creates a
+fresh `backstage/examples/` alongside it. The replay step removes that unused
+copy because the catalog is configured to read from here instead.

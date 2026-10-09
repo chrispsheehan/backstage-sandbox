@@ -1,10 +1,11 @@
 PROJECT_DIR := source_directory() / "../.."
 LAB_DIR := PROJECT_DIR / "/.lab"
 CLUSTER_NAME := "platform-lab"
+BACKSTAGE_CREATE_APP_VERSION := "0.9.1"
 ARGOCD_PORT_FORWARD_LOG := LAB_DIR / "/argocd-port-forward.log"
 BACKSTAGE_PORT_FORWARD_LOG := LAB_DIR / "/backstage-port-forward.log"
 
-# Scaffold the Backstage app into backstage/; when prompted for a name, enter "backstage".
+# Create the pinned Backstage scaffold when missing, then apply and verify repo overrides.
 install:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -15,7 +16,36 @@ install:
     fi
 
     cd {{ PROJECT_DIR }}
-    npx @backstage/create-app@latest
+    created_scaffold=false
+    if [[ ! -e "{{ PROJECT_DIR }}/backstage" ]]; then
+        printf '%s\n' backstage \
+          | npx --yes @backstage/create-app@{{ BACKSTAGE_CREATE_APP_VERSION }} \
+              --path "{{ PROJECT_DIR }}/backstage" \
+              --skip-install
+        created_scaffold=true
+    elif [[ ! -f "{{ PROJECT_DIR }}/backstage/backstage.json" ]]; then
+        echo "Existing backstage/ is not a complete scaffold; move or remove it before retrying." >&2
+        exit 1
+    else
+        echo "Using existing backstage/ scaffold."
+    fi
+
+    just backstage-replay
+    if [[ "${created_scaffold}" == "true" ]]; then
+        (
+            cd "{{ PROJECT_DIR }}/backstage"
+            yarn install
+        )
+    fi
+    just backstage-verify
+
+# Apply the tracked repo overrides to an existing Backstage scaffold.
+backstage-replay:
+    bash "{{ PROJECT_DIR }}/scripts/local/replay-backstage.sh" apply
+
+# Verify that the ignored Backstage scaffold matches every tracked repo override.
+backstage-verify:
+    bash "{{ PROJECT_DIR }}/scripts/local/replay-backstage.sh" check
 
 # Bootstrap k3d and Argo CD, then register Crossplane and configure local integrations.
 _bootstrap-cluster:
@@ -53,8 +83,20 @@ _start:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    aws_credentials_file="${AWS_SHARED_CREDENTIALS_FILE:-${HOME}/.aws/credentials}"
+    if [[ -r "${aws_credentials_file}" ]]; then
+        load_aws_credentials=true
+    else
+        load_aws_credentials=false
+        echo "No readable AWS credentials file found at ${aws_credentials_file}; continuing without local Crossplane AWS authentication."
+        echo "The platform will start, but AWS managed resources will not reconcile until credentials are loaded."
+        echo "Run 'just local-crossplane-aws-auth <credentials-file>' when needed."
+    fi
+
     just _bootstrap-cluster
-    just local-crossplane-aws-auth ~/.aws/credentials
+    if [[ "${load_aws_credentials}" == "true" ]]; then
+        just local-crossplane-aws-auth "${aws_credentials_file}"
+    fi
     just local-backstage-auth
     just local-build-backstage-image
     just local-deploy-backstage

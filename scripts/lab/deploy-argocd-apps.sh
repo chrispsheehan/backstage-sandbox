@@ -15,6 +15,15 @@ command -v kubectl >/dev/null 2>&1 || {
   exit 1
 }
 
+backstage_was_available=false
+available_replicas="$(
+  kubectl -n backstage get deployment backstage \
+    -o jsonpath='{.status.availableReplicas}' 2>/dev/null || true
+)"
+if [[ "${available_replicas:-0}" -gt 0 ]]; then
+  backstage_was_available=true
+fi
+
 kubectl kustomize --load-restrictor LoadRestrictionsNone "${applications_dir}" \
   | kubectl apply -f -
 
@@ -29,7 +38,9 @@ if kubectl -n backstage get deployment postgres >/dev/null 2>&1; then
   kubectl -n backstage rollout status deployment/postgres --timeout=300s
 fi
 
-kubectl -n backstage rollout restart deployment/backstage
+if [[ "${backstage_was_available}" == "true" ]]; then
+  kubectl -n backstage rollout restart deployment/backstage
+fi
 kubectl -n backstage rollout status deployment/backstage --timeout=300s
 
 echo "Local Argo CD applications are configured from the shared Git source."
