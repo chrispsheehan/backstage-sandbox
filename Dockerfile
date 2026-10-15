@@ -55,8 +55,8 @@ RUN mkdir -p packages/backend/dist/skeleton packages/backend/dist/bundle && \
     tar xzf packages/backend/dist/skeleton.tar.gz -C packages/backend/dist/skeleton && \
     tar xzf packages/backend/dist/bundle.tar.gz -C packages/backend/dist/bundle
 
-# Stage 3 - Runtime image with the embedded frontend.
-FROM node:24-trixie-slim AS backstage
+# Stage 3 - Build the production dependency tree, including native modules.
+FROM node:24-trixie-slim AS production-dependencies
 
 ENV PYTHON=/usr/bin/python3
 
@@ -80,8 +80,18 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS="--no-node-snapshot"
 
 RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid=1000 \
-    yarn workspaces focus --all --production && rm -rf "$(yarn cache clean)"
+    yarn workspaces focus backend --production && rm -rf "$(yarn cache clean)"
 
+# Stage 4 - Runtime image with the embedded frontend and no build toolchain.
+FROM node:24-trixie-slim AS backstage
+
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--no-node-snapshot"
+
+USER node
+WORKDIR /app
+
+COPY --from=production-dependencies --chown=node:node /app ./
 COPY --from=build --chown=node:node /app/packages/backend/dist/bundle/ ./
 COPY --from=build --chown=node:node /app/packages/app/dist ./packages/app/dist
 COPY --from=build --chown=node:node /app/app-config.yaml /app/app-config.production.yaml ./

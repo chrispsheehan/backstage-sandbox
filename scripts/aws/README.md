@@ -97,7 +97,7 @@ to be retried without reinstalling the host and controllers.
 
 ## Refresh ECR Credentials
 
-ECR authorization tokens expire after 12 hours. Existing pods continue using a
+ECR authorisation tokens expire after 12 hours. Existing pods continue using a
 cached image, but a later pull can fail after `Secret/ecr-registry` expires. A
 new host refreshes the Secret automatically.
 

@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: s3-static-website-pr
   title: S3 Static Website PR
-  description: Open a PR against this repo that adds an app folder with a hello-world site and Crossplane S3 website manifests
+  description: Open a PR that adds a disposable, publicly readable S3 website managed by Crossplane
   tags:
     - aws
     - crossplane
@@ -14,6 +14,7 @@ spec:
   type: infrastructure
   parameters:
     - title: Website details
+      description: The generated bucket is public and uses forceDestroy, so deleting the application can delete all site content.
       required:
         - name
         - bucketNamePrefix

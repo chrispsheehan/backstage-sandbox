@@ -15,12 +15,41 @@ command -v kubectl >/dev/null 2>&1 || {
   exit 1
 }
 
+backstage_was_available=false
+available_replicas="$(
+  kubectl -n backstage get deployment backstage \
+    -o jsonpath='{.status.availableReplicas}' 2>/dev/null || true
+)"
+if [[ "${available_replicas:-0}" -gt 0 ]]; then
+  backstage_was_available=true
+fi
+
+initial_backstage_reconciled_at="$(kubectl -n argocd get application backstage \
+  -o jsonpath='{.status.reconciledAt}' 2>/dev/null || true)"
+
 kubectl kustomize --load-restrictor LoadRestrictionsNone "${applications_dir}" \
   | kubectl apply -f -
+kubectl -n argocd annotate application backstage \
+  argocd.argoproj.io/refresh=hard --overwrite >/dev/null
 
 for _ in $(seq 1 60); do
   if kubectl -n backstage get deployment backstage >/dev/null 2>&1; then
     break
+  fi
+
+  backstage_source_error="$(kubectl -n argocd get application backstage \
+    -o jsonpath='{range .status.conditions[*]}{.message}{"\n"}{end}' 2>/dev/null || true)"
+  backstage_reconciled_at="$(kubectl -n argocd get application backstage \
+    -o jsonpath='{.status.reconciledAt}' 2>/dev/null || true)"
+  if [[ "${backstage_reconciled_at}" != "${initial_backstage_reconciled_at}" ]]; then
+    if [[ "${backstage_source_error}" == *"authentication required"* || \
+          "${backstage_source_error}" == *"Invalid username or token"* ]]; then
+      echo "Argo CD cannot authenticate to the Git repository for Backstage." >&2
+      echo "Refresh GitHub CLI credentials with 'gh auth refresh -h github.com'," >&2
+      echo "then run 'just local-argocd-repo-auth' and retry with" >&2
+      echo "'just local-deploy-backstage'." >&2
+      exit 1
+    fi
   fi
   sleep 5
 done
@@ -29,7 +58,9 @@ if kubectl -n backstage get deployment postgres >/dev/null 2>&1; then
   kubectl -n backstage rollout status deployment/postgres --timeout=300s
 fi
 
-kubectl -n backstage rollout restart deployment/backstage
+if [[ "${backstage_was_available}" == "true" ]]; then
+  kubectl -n backstage rollout restart deployment/backstage
+fi
 kubectl -n backstage rollout status deployment/backstage --timeout=300s
 
 echo "Local Argo CD applications are configured from the shared Git source."
