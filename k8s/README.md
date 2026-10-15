@@ -98,8 +98,12 @@ Local authentication behaviour:
 - Authenticated GitHub users receive `role:admin` in this disposable lab.
 - The built-in Argo CD `admin` account remains available locally.
 - Backstage and Argo CD use the same OAuth app with separate callbacks.
-- The local workflow requires GitHub CLI authentication from `gh auth login` so
-  Argo CD can receive repository credentials, including for public repositories.
+- `just local-up` runs `just local-argocd-repo-auth` to give Argo CD the current
+  GitHub CLI token for the configured repository. If the token is expired or
+  needs refreshed permissions, run `gh auth refresh -h github.com` first. When
+  Argo CD reports an authentication error during deployment, the command points
+  to the refresh and retry steps: `just local-argocd-repo-auth`, then
+  `just local-deploy-backstage`.
 
 Refresh authentication without rebuilding the cluster:
 

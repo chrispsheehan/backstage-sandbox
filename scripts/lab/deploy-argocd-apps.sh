@@ -31,6 +31,17 @@ for _ in $(seq 1 60); do
   if kubectl -n backstage get deployment backstage >/dev/null 2>&1; then
     break
   fi
+
+  backstage_source_error="$(kubectl -n argocd get application backstage \
+    -o jsonpath='{range .status.conditions[*]}{.message}{"\n"}{end}' 2>/dev/null || true)"
+  if [[ "${backstage_source_error}" == *"authentication required"* || \
+        "${backstage_source_error}" == *"Invalid username or token"* ]]; then
+    echo "Argo CD cannot authenticate to the Git repository for Backstage." >&2
+    echo "Refresh GitHub CLI credentials with 'gh auth refresh -h github.com'," >&2
+    echo "then run 'just local-argocd-repo-auth' and retry with" >&2
+    echo "'just local-deploy-backstage'." >&2
+    exit 1
+  fi
   sleep 5
 done
 

@@ -12,8 +12,11 @@ and commands.
 ## Quick Start
 
 The local workflow requires Docker, `just`, `kubectl`, `k3d`, and GitHub CLI
-authentication from `gh auth login`. Recreating the Backstage scaffold also
-requires Node 22 or 24.
+authentication from `gh auth login` with a token that can read this repository.
+`just local-up` configures Argo CD with that token automatically. If the token
+is expired or needs refreshed permissions, run `gh auth refresh -h github.com`
+before starting the lab. Recreating the Backstage scaffold also requires Node
+22 or 24.
 
 On macOS with Homebrew:
 

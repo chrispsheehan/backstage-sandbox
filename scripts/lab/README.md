@@ -71,6 +71,10 @@ Local deployment behaviour:
   fresh deployment it lets the first pod finish database migrations without a
   competing restart; when a healthy deployment already exists, it restarts
   Backstage onto the newly imported image.
+- If Argo CD reports GitHub token authentication failure while Backstage is
+  being deployed, the script exits early and advises running
+  `gh auth refresh -h github.com`, `just local-argocd-repo-auth`, then
+  `just local-deploy-backstage`.
 - The generated-app `ApplicationSet` discovers committed definitions under
   `apps/*/argocd` on `main`.
 
