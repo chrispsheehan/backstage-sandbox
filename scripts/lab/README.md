@@ -72,7 +72,9 @@ Local deployment behaviour:
   competing restart; when a healthy deployment already exists, it restarts
   Backstage onto the newly imported image.
 - If Argo CD reports GitHub token authentication failure while Backstage is
-  being deployed, the script exits early and advises running
+  being deployed, the script requests a fresh Argo CD comparison before
+  reporting it, so a stale error from before credential refresh does not fail
+  the deployment. If the error remains, it advises running
   `gh auth refresh -h github.com`, `just local-argocd-repo-auth`, then
   `just local-deploy-backstage`.
 - The generated-app `ApplicationSet` discovers committed definitions under
