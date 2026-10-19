@@ -9,7 +9,7 @@ same platform on EC2 with an ALB and RDS; see
 [infra/README.md](infra/README.md) for its architecture, prerequisites, cost,
 and commands.
 
-## Quick Start
+## Local Setup
 
 The local workflow requires Docker, `just`, `kubectl`, `k3d`, and GitHub CLI
 authentication from `gh auth login` with a token that can read this repository.
@@ -65,6 +65,23 @@ kubectl get providers.pkg.crossplane.io
 
 See [Crossplane provider verification](crossplane/README.md#verify-provider-installation)
 for the expected result.
+
+## EC2 Setup
+
+After completing the [EC2 prerequisites](infra/README.md#prerequisites) and
+configuring `.env`, start Docker and run:
+
+```bash
+just ec2-push-image
+```
+
+Commit and push the EC2 image selection printed by that command, then deploy:
+
+```bash
+just ec2-up
+```
+
+See the [EC2 setup guide](infra/README.md#ec2-setup) for details.
 
 ## Architecture
 
