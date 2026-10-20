@@ -34,16 +34,12 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_INFRA_ROLE_ARN: ${{ vars.AWS_INFRA_ROLE_ARN }}
-      AUTH_GITHUB_CLIENT_ID: ${{ secrets.AUTH_GITHUB_CLIENT_ID }}
-      AUTH_GITHUB_CLIENT_SECRET: ${{ secrets.AUTH_GITHUB_CLIENT_SECRET }}
-      TG_NON_INTERACTIVE: "true"
+      TF_VAR_backstage_github_client_id: ${{ secrets.AUTH_GITHUB_CLIENT_ID }}
+      TF_VAR_backstage_github_client_secret: ${{ secrets.AUTH_GITHUB_CLIENT_SECRET }}
       PURGE_ECR: ${{ inputs.purge_ecr }}
     steps:
       - name: Check out source
         uses: actions/checkout@v6
-
-      - name: Set up Just
-        uses: extractions/setup-just@v3
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -69,13 +65,13 @@ jobs:
           tf_path: terraform
 
       - name: Destroy dev stacks
+        working-directory: infra/live/dev
         shell: bash
         run: |
-          if [[ "${PURGE_ECR}" == "true" ]]; then
-            just tg-all dev "destroy -auto-approve"
-          else
-            just tg-all dev "destroy -auto-approve" aws/ecr
-          fi
+          # Keep the OIDC deployment role available for future CI runs.
+          terragrunt --non-interactive run --all \
+            --queue-exclude-dir=aws/github_oidc_role \
+            -- destroy -auto-approve
 
       - name: Write destroy summary
         shell: bash
@@ -85,9 +81,56 @@ jobs:
             echo
             echo "- Environment: \`dev\`"
             if [[ "${PURGE_ECR}" == "true" ]]; then
-              echo "- ECR and its images were removed."
+              echo "- CI ECR removal runs as a separate job."
             else
               echo "- ECR and its images were retained."
             fi
             echo "- Shared Terragrunt state bucket was retained."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  destroy-ecr:
+    name: Destroy CI ECR
+    needs: destroy
+    if: inputs.confirm == 'destroy' && inputs.purge_ecr
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_INFRA_ROLE_ARN: ${{ vars.AWS_INFRA_ROLE_ARN }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_INFRA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set AWS account ID
+        shell: bash
+        run: |
+          echo "AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" \
+            >> "${GITHUB_ENV}"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.12.2
+
+      - name: Set up Terragrunt
+        uses: gruntwork-io/terragrunt-action@v3
+        with:
+          tg_version: 1.1.6
+          tf_path: terraform
+
+      - name: Destroy CI ECR and its images
+        run: terragrunt --non-interactive --working-dir infra/live/ci/aws/ecr destroy -auto-approve
+
+      - name: Write ECR destroy summary
+        run: |
+          {
+            echo "## CI ECR Destroy Complete"
+            echo
+            echo "- ECR repository and images were removed."
           } >> "${GITHUB_STEP_SUMMARY}"

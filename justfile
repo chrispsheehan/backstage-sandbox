@@ -51,11 +51,14 @@ ec2-up:
 
 # Destroy the disposable dev runtime while retaining ECR and its images.
 ec2-down:
-    just tg-all dev "destroy -auto-approve" "aws/ecr"
+    just tg-all dev "destroy -auto-approve" aws/github_oidc_role
 
-# Destroy the complete dev environment, including ECR and its images.
+# Destroy the dev runtime, then remove CI ECR and its images.
 ec2-purge:
-    just tg-all dev "destroy -auto-approve"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just tg-all dev "destroy -auto-approve" aws/github_oidc_role
+    just tg ci aws/ecr "destroy -auto-approve"
 
 # Open a Session Manager shell on the dev platform workstation.
 ec2-shell:
@@ -64,3 +67,10 @@ ec2-shell:
 # Stream EC2 user-data output from the dev platform workstation console.
 ec2-logs:
     just --justfile "{{ PROJECT_DIR }}/scripts/local/justfile" _bootstrap-logs
+
+# Provision GitHub Actions OIDC role locally, then print its ARN.
+ci-setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just tg dev aws/github_oidc_role apply
+    just tg dev aws/github_oidc_role output -raw role_arn

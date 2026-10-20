@@ -15,7 +15,7 @@ repo root `.env`, and configure the shared GitHub OAuth app described in
 [GitHub authentication](../k8s/README.md#github-authentication).
 
 The **EC2 Bootstrap** GitHub Actions workflow publishes the initial image with
-the `bootstrap` tag, then applies the dev stacks. For a local deployment or to
+the `dev` tag, then applies the dev stacks. For a local deployment or to
 update Backstage later, publish the current commit as a pinned image:
 
 ```bash
@@ -47,7 +47,7 @@ Database deletion is permanent and does not create a final snapshot.
 
 | Resource | Purpose |
 | --- | --- |
-| ECR | Private repository for the bootstrap and commit-tagged ARM64 Backstage images. |
+| ECR | Private repository for the mutable `dev` and commit-tagged ARM64 Backstage images. |
 | IAM role and instance profile | SSM access, bootstrap download, ECR pulls, runtime parameters, and generated-site S3 permissions. |
 | EC2 | One `t4g.medium` Amazon Linux 2023 host with an encrypted 30 GiB gp3 volume, Docker, kubectl, k3d, and an ephemeral public IPv4 address. |
 | ALB, ACM, and Route 53 | Browser-trusted HTTPS and hostname routing for Backstage and Argo CD using the existing `chrispsheehan.com` hosted zone. |
@@ -84,11 +84,11 @@ Terraform discovers rather than creates the network:
 | Public subnets | At least two subnets in distinct availability zones belong to that VPC, have case-sensitive `Name` tags containing `public`, and route `0.0.0.0/0` to an internet gateway. |
 | Route 53 | A public hosted zone named `chrispsheehan.com`. |
 
-Change `vpc_name` in `live/global_vars.hcl` if the VPC is not named `vpc`.
-The host uses the lexically first matching subnet. The ALB and RDS subnet group
-span the matching subnet set. RDS remains private because
-`publicly_accessible = false` and its security group accepts PostgreSQL only
-from the platform-host security group.
+Set `vpc_name` and `hosted_zone_name` in `live/global_vars.hcl` to match the
+existing VPC and public hosted zone. The host uses the lexically first matching
+subnet. The ALB and RDS subnet group span the matching subnet set. RDS remains
+private because `publicly_accessible = false` and its security group accepts
+PostgreSQL only from the platform-host security group.
 
 ### Remote state
 
@@ -96,15 +96,69 @@ The shared state bucket must already exist. Terragrunt stores state and native
 S3 lock files beneath:
 
 ```text
-s3://<account>-<region>-backstage-sandbox-tfstate/dev/aws/<module>/terraform.tfstate
+s3://<account>-<region>-backstage-sandbox-tfstate/<environment>/aws/<module>/terraform.tfstate
 ```
 
 Destroying this environment does not remove the state bucket.
 
+### GitHub Actions OIDC role
+
+The `dev/aws/github_oidc_role` stack creates the GitHub Actions deployment role.
+The role trusts this repository's `main` branch and the `dev` GitHub Actions
+environment. Its permissions cover the AWS services managed by the dev stacks
+and access to the shared Terraform state bucket. The role stack uses
+[`chrispsheehan/github-oidc-role/aws`](https://registry.terraform.io/modules/chrispsheehan/github-oidc-role/aws/latest),
+pinned to version `1.0.3`.
+
+Before the first apply, create the GitHub Actions OIDC identity provider in IAM
+(`token.actions.githubusercontent.com`) and create the shared state bucket.
+Use local AWS credentials with permission to create the IAM role and its
+policies, manage ECR, and access the state bucket.
+
+The ECR stack is managed separately under `ci/aws/ecr`. Its repository name is
+`backstage-sandbox`; the registry URI already includes the account ID and
+region. Its Terragrunt state also moves from the old `dev/aws/ecr` key to
+`ci/aws/ecr`. Before applying the moved stack, move the existing state object
+while no Terraform or Terragrunt operation is running:
+
+```bash
+export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+state_bucket="${AWS_ACCOUNT_ID}-eu-west-2-backstage-sandbox-tfstate"
+aws s3 mv \
+  "s3://${state_bucket}/dev/aws/ecr/terraform.tfstate" \
+  "s3://${state_bucket}/ci/aws/ecr/terraform.tfstate"
+```
+
+After the state move, run `just ci-setup` to apply the CI ECR and OIDC role
+stacks and print the role ARN. For a fresh account with no ECR repository or
+state to migrate, run `just ci-setup` directly. Changing the repository name
+from the previous `backstage-sandbox-dev` name replaces the old repository;
+with `force_delete` enabled, images in the old repository are removed. Push the
+image again with `just ec2-push-image` before using the EC2 overlay.
+
+Set the output ARN as the GitHub repository variable `AWS_INFRA_ROLE_ARN`, and
+set `AWS_REGION` to the deployment region. Store the Backstage OAuth values as
+repository or `dev` environment secrets named `AUTH_GITHUB_CLIENT_ID` and
+`AUTH_GITHUB_CLIENT_SECRET`. The GitHub workflows pass these secrets to
+Terragrunt through `TF_VAR_backstage_github_client_id` and
+`TF_VAR_backstage_github_client_secret`, and resolve `AWS_ACCOUNT_ID` through
+STS. The workflows call Terragrunt directly; local `just tg` and `just tg-all`
+commands remain available for interactive use.
+
+Restrict the `dev` GitHub environment to `main` so only the intended branch can
+assume the infrastructure role. After initial setup, `just tg-all dev plan`
+and `just tg-all dev apply` include the OIDC role stack. EC2 Bootstrap and
+`just ec2-push-image` apply the CI ECR stack directly before using it. In the
+EC2 Bootstrap workflow, one job provisions ECR and publishes the `dev` image;
+a dependent job then applies the dev infrastructure. The EC2 Destroy workflow
+also handles CI ECR removal in a separate job when `purge_ecr` is selected.
+The workflow and `just ec2-down` / `just ec2-purge` exclude the OIDC role;
+`just ec2-purge` removes ECR explicitly.
+
 ## Deployment Model
 
-Terragrunt can create ECR and the security stack in parallel, then creates RDS
-and the platform host according to their dependencies. Terraform stages
+The CI environment owns ECR. Terragrunt creates the dev security stack, RDS,
+and platform host according to their dependencies. Terraform stages
 `k8s/bootstrap/argocd/`, `scripts/aws/`, and `scripts/lab/` in a private S3
 archive rather than cloning the repository onto EC2.
 
@@ -125,21 +179,21 @@ diagnostics, and manual recovery.
 
 | Command | Purpose |
 | --- | --- |
-| `just ec2-push-image` | Apply ECR, push the current commit as an ARM64 image, and print the overlay image selection to commit when updating Backstage. |
+| `just ec2-push-image` | Apply CI ECR, push the current commit as an ARM64 image, and print the overlay image selection to commit when updating Backstage. |
 | `just ec2-up` | Apply all dev stacks, follow bootstrap logs, and print platform outputs. |
 | `just ec2-logs` | Follow serial-console bootstrap output until success or failure. |
 | `just ec2-shell` | Open a Session Manager shell as `ec2-user`. |
 | `just ec2-down` | Permanently remove the runtime and database while retaining ECR and its images. |
-| `just ec2-purge` | Permanently remove the complete environment, including ECR images. |
+| `just ec2-purge` | Permanently remove the dev runtime and CI ECR repository and images. |
 | `just infra-format` | Format Terraform and Terragrunt files. |
 | `just tg <env> <module> <op>` | Run one operation against one stack. |
-| `just tg-all <env> <op> [exclude_dir]` | Run an operation across an environment's dependency graph. |
+| `just tg-all <env> <op> [exclude_dir ...]` | Run an operation across an environment's dependency graph, optionally excluding directories. |
 
-The EC2 Bootstrap workflow publishes `:bootstrap` for a fresh deployment. To
+The EC2 Bootstrap workflow publishes `:dev` for a fresh deployment. To
 update Backstage, run `just ec2-push-image`; it authenticates to ECR, pushes
 `<repository-url>:<commit>`, and prints the exact overlay entry to use. Commit
 and push that overlay change for Argo CD to deploy the pinned image. The
-`bootstrap` tag is mutable and is refreshed by the bootstrap workflow; local
+`dev` tag is mutable and is refreshed by the bootstrap workflow; local
 commit tags remain available for reproducible rollouts. ECR authorisation
 tokens expire after 12 hours; the bootstrap runbook explains how to refresh an
 existing host.
@@ -182,12 +236,12 @@ token out of Terraform inputs, state, user data, and logs.
 
 `just ec2-down` destroys the host, database, IAM role, security groups, ALB,
 ACM certificate, platform DNS records, runtime parameters, and bootstrap
-bucket. It skips ECR so the selected image remains available for rebuilding.
+bucket. ECR is in the CI environment and remains available for rebuilding.
 
 `just ec2-purge` performs the same non-interactive, automatically approved
-destroy without excluding ECR. Both commands permanently delete RDS without a
-final snapshot. The existing hosted zone and shared Terragrunt state bucket
-remain.
+dev destroy, then removes the CI ECR repository and its images. Both commands
+permanently delete RDS without a final snapshot. The OIDC role, existing hosted
+zone, and shared Terragrunt state bucket remain.
 
 ## Cost
 

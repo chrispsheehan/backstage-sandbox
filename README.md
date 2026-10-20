@@ -82,8 +82,21 @@ printed by the command, then commit and push it. Deploy with:
 just ec2-up
 ```
 
-For a GitHub Actions bootstrap using the `bootstrap` image tag, and more detail
+For a GitHub Actions bootstrap using the `dev` image tag, and more detail
 on updating the image, see the [EC2 setup guide](infra/README.md#quick-start).
+
+## CI Setup
+
+Provision the CI ECR repository and bootstrap the GitHub Actions OIDC role
+locally, then print its ARN:
+
+```bash
+just ci-setup
+```
+
+For an existing EC2 lab, migrate the ECR state first using the linked guide.
+Add the role ARN and required runner variables and secrets in GitHub. See the
+[CI and OIDC setup details](infra/README.md#github-actions-oidc-role).
 
 ## Architecture
 

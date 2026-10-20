@@ -7,6 +7,5 @@ terraform {
 }
 
 inputs = {
-  # Preserve the dev repository suffix; the module prefixes account and region.
-  base_name = "backstage-sandbox-dev"
+  base_name = "backstage-sandbox"
 }

@@ -23,7 +23,7 @@ tg env module op:
       {{ op }}
 
 # Run one Terragrunt operation across an environment, optionally excluding one directory.
-tg-all env op exclude_dir="":
+tg-all env op *exclude_dirs:
     #!/usr/bin/env bash
     set -euo pipefail
     if [[ -f "{{ CI_PROJECT_DIR }}/.env" ]]; then
@@ -39,26 +39,25 @@ tg-all env op exclude_dir="":
         AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
         export AWS_ACCOUNT_ID
     fi
-    if [[ -n "{{ exclude_dir }}" ]]; then
-        terragrunt \
-          --non-interactive \
-          --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}" \
-          run --all --queue-exclude-dir="{{ exclude_dir }}" -- {{ op }}
-    else
-        terragrunt \
-          --non-interactive \
-          --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}" \
-          run --all -- {{ op }}
-    fi
+    exclude_args=()
+    for exclude in {{ exclude_dirs }}; do
+        if [[ -n "${exclude}" ]]; then
+            exclude_args+=(--queue-exclude-dir="${exclude}")
+        fi
+    done
+    terragrunt \
+      --non-interactive \
+      --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}" \
+      run --all "${exclude_args[@]}" -- {{ op }}
 
-# Root `just ec2-push-image` delegates to this CI workflow implementation.
+# Root `just ec2-push-image` delegates to this local image-publishing recipe.
 _push-image version:
     #!/usr/bin/env bash
     set -euo pipefail
 
     version="{{ version }}"
-    if [[ "${version}" != "bootstrap" && ! "${version}" =~ ^[0-9a-f]{7,40}$ ]]; then
-        echo "Version must be 'bootstrap' or a 7-40 character lowercase Git hash." >&2
+    if [[ "${version}" != "dev" && ! "${version}" =~ ^[0-9a-f]{7,40}$ ]]; then
+        echo "Version must be 'dev' or a 7-40 character lowercase Git hash." >&2
         exit 1
     fi
 
@@ -73,10 +72,9 @@ _push-image version:
 
     export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
     export TG_NON_INTERACTIVE=true
-    just --justfile "{{ CI_PROJECT_DIR }}/justfile" \
-      tg dev aws/ecr "apply -auto-approve"
-    repository_url="$(just --justfile "{{ CI_PROJECT_DIR }}/justfile" \
-      tg dev aws/ecr "output -raw repository_url")"
+    ecr_stack="{{ CI_PROJECT_DIR }}/infra/live/ci/aws/ecr"
+    terragrunt --non-interactive --working-dir "${ecr_stack}" apply -auto-approve
+    repository_url="$(terragrunt --working-dir "${ecr_stack}" output -raw repository_url)"
     registry="${repository_url%%/*}"
     aws_region="$(cut -d. -f4 <<<"${registry}")"
     image_uri="${repository_url}:${version}"
