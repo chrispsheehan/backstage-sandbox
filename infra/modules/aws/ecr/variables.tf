@@ -1,3 +1,13 @@
+variable "aws_account_id" {
+  type        = string
+  description = "AWS account ID used to namespace the repository name."
+}
+
+variable "aws_region" {
+  type        = string
+  description = "AWS region used to namespace the repository name."
+}
+
 variable "base_name" {
   type        = string
   description = "Name of the development Backstage image repository."
