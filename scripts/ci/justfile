@@ -17,6 +17,12 @@ tg env module op:
         AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
         export AWS_ACCOUNT_ID
     fi
+    case "{{ op }}" in
+        *apply*|*destroy*)
+            echo "Local infrastructure apply/destroy is disabled. Use the EC2 Bootstrap or EC2 Destroy GitHub Actions workflow." >&2
+            exit 2
+            ;;
+    esac
     export TG_NON_INTERACTIVE=true
     terragrunt \
       --working-dir "{{ CI_PROJECT_DIR }}/infra/live/{{ env }}/{{ module }}" \
@@ -39,6 +45,12 @@ tg-all env op *exclude_dirs:
         AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
         export AWS_ACCOUNT_ID
     fi
+    case "{{ op }}" in
+        *apply*|*destroy*)
+            echo "Local infrastructure apply/destroy is disabled. Use the EC2 Bootstrap or EC2 Destroy GitHub Actions workflow." >&2
+            exit 2
+            ;;
+    esac
     exclude_args=()
     for exclude in {{ exclude_dirs }}; do
         if [[ -n "${exclude}" ]]; then
@@ -73,7 +85,6 @@ _push-image version:
     export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
     export TG_NON_INTERACTIVE=true
     ecr_stack="{{ CI_PROJECT_DIR }}/infra/live/ci/aws/ecr"
-    terragrunt --non-interactive --working-dir "${ecr_stack}" apply -auto-approve
     repository_url="$(terragrunt --working-dir "${ecr_stack}" output -raw repository_url)"
     registry="${repository_url%%/*}"
     aws_region="$(cut -d. -f4 <<<"${registry}")"

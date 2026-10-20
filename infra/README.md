@@ -10,36 +10,26 @@ usage-based charges; see [Cost](#cost).
 
 ## Quick Start
 
-For local deployment, satisfy the [prerequisites](#prerequisites), create the
-repo root `.env`, and configure the shared GitHub OAuth app described in
+For CI deployment, complete the [OIDC setup](#github-actions-oidc-role) and
+configure the shared GitHub OAuth app described in
 [GitHub authentication](../k8s/README.md#github-authentication).
 
-The **EC2 Bootstrap** GitHub Actions workflow publishes the initial image with
-the `dev` tag, then applies the dev stacks. For a local deployment or to
-update Backstage later, publish the current commit as a pinned image:
-
-```bash
-just ec2-push-image
-```
-
-The command prints the image selection for
-`k8s/overlays/ec2/backstage/kustomization.yaml`. Replace its `images` entry
-with that snippet, then commit and push the overlay change. Argo CD will deploy
-the new image. For a local first deployment, plan and apply with:
+From the repository's Actions tab, dispatch **EC2 Bootstrap** on `main` and
+select `bootstrap`. It provisions ECR, publishes the initial `dev` image, and
+applies the dev stacks. To plan locally before applying, use:
 
 ```bash
 just tg-all dev plan
-just ec2-up
 ```
 
-`just ec2-up` applies the stacks in dependency order, follows bootstrap logs,
-and prints the Backstage and Argo CD URLs after bootstrap succeeds.
+To publish a pinned Backstage image from your workstation after ECR exists, run
+`just ec2-push-image`. The command prints the image selection for
+`k8s/overlays/ec2/backstage/kustomization.yaml`. Replace its `images` entry
+with that snippet, then commit and push the overlay change. Argo CD will deploy
+the new image.
 
-When finished, destroy the runtime and database while retaining ECR images:
-
-```bash
-just ec2-down
-```
+When finished, dispatch **EC2 Destroy** and select `destroy`. Leave `purge_ecr`
+off to retain images, or enable it to remove ECR too.
 
 Database deletion is permanent and does not create a final snapshot.
 
@@ -62,17 +52,16 @@ in the READMEs under [`modules/aws/`](modules/aws/).
 
 - Terraform 1.11 or newer, Terragrunt, AWS CLI, `jq`, `gh`, and `just`
 - Docker Buildx and a running Docker daemon when publishing an image
-- local AWS credentials authorised to manage EC2, ELBv2, ACM, ECR, RDS, IAM,
-  SSM, Route 53 records, and the Terragrunt state bucket
+- local AWS credentials for the one-time OIDC role setup, local planning, and
+  optional ECR image publishing
 - `AWS_REGION=eu-west-2`, unless the default is suitable
 - repo-root `.env` values for `AUTH_GITHUB_CLIENT_ID` and
   `AUTH_GITHUB_CLIENT_SECRET`
 - the existing network and state backend described below
 
-The Just recipes load `.env` and pass the OAuth values as sensitive Terraform
-variables. When invoking Terragrunt directly, export the corresponding
-`TF_VAR_backstage_github_client_id` and
-`TF_VAR_backstage_github_client_secret` values yourself.
+The GitHub workflows receive OAuth values from the `dev` environment secrets.
+For local plan commands, the Just recipes load `.env` and pass the OAuth values
+as sensitive Terraform variables.
 
 ### Existing network
 
@@ -129,9 +118,10 @@ aws s3 mv \
   "s3://${state_bucket}/ci/aws/ecr/terraform.tfstate"
 ```
 
-After the state move, run `just ci-setup` to apply the CI ECR and OIDC role
-stacks and print the role ARN. For a fresh account with no ECR repository or
-state to migrate, run `just ci-setup` directly. Changing the repository name
+After the state move, run `just ci-setup` to apply the OIDC role stack locally
+and print the role ARN. For a fresh account with no ECR repository or state to
+migrate, run `just ci-setup` directly. The EC2 Bootstrap workflow creates ECR.
+Changing the repository name
 from the previous `backstage-sandbox-dev` name replaces the old repository;
 with `force_delete` enabled, images in the old repository are removed. Push the
 image again with `just ec2-push-image` before using the EC2 overlay.
@@ -142,18 +132,21 @@ repository or `dev` environment secrets named `AUTH_GITHUB_CLIENT_ID` and
 `AUTH_GITHUB_CLIENT_SECRET`. The GitHub workflows pass these secrets to
 Terragrunt through `TF_VAR_backstage_github_client_id` and
 `TF_VAR_backstage_github_client_secret`, and resolve `AWS_ACCOUNT_ID` through
-STS. The workflows call Terragrunt directly; local `just tg` and `just tg-all`
-commands remain available for interactive use.
+STS. The workflows call Terragrunt directly. Local `just tg` and `just tg-all`
+commands support planning and inspection; local apply and destroy operations
+are blocked. `just ci-setup` is the one-time local exception for creating the
+OIDC role that authorizes the workflows.
 
 Restrict the `dev` GitHub environment to `main` so only the intended branch can
 assume the infrastructure role. After initial setup, `just tg-all dev plan`
-and `just tg-all dev apply` include the OIDC role stack. EC2 Bootstrap and
-`just ec2-push-image` apply the CI ECR stack directly before using it. In the
+includes the OIDC role stack. EC2 Bootstrap creates the CI ECR stack and
+publishes the `dev` image. `just ec2-push-image` publishes an image to that
+existing repository. In the
 EC2 Bootstrap workflow, one job provisions ECR and publishes the `dev` image;
 a dependent job then applies the dev infrastructure. The EC2 Destroy workflow
 also handles CI ECR removal in a separate job when `purge_ecr` is selected.
-The workflow and `just ec2-down` / `just ec2-purge` exclude the OIDC role;
-`just ec2-purge` removes ECR explicitly.
+Both workflows exclude the OIDC role; EC2 Destroy removes ECR only when
+`purge_ecr` is selected.
 
 ## Deployment Model
 
@@ -179,15 +172,12 @@ diagnostics, and manual recovery.
 
 | Command | Purpose |
 | --- | --- |
-| `just ec2-push-image` | Apply CI ECR, push the current commit as an ARM64 image, and print the overlay image selection to commit when updating Backstage. |
-| `just ec2-up` | Apply all dev stacks, follow bootstrap logs, and print platform outputs. |
+| `just ec2-push-image` | Push the current commit as an ARM64 image to existing ECR, and print the overlay image selection to commit when updating Backstage. |
 | `just ec2-logs` | Follow serial-console bootstrap output until success or failure. |
 | `just ec2-shell` | Open a Session Manager shell as `ec2-user`. |
-| `just ec2-down` | Permanently remove the runtime and database while retaining ECR and its images. |
-| `just ec2-purge` | Permanently remove the dev runtime and CI ECR repository and images. |
 | `just infra-format` | Format Terraform and Terragrunt files. |
-| `just tg <env> <module> <op>` | Run one operation against one stack. |
-| `just tg-all <env> <op> [exclude_dir ...]` | Run an operation across an environment's dependency graph, optionally excluding directories. |
+| `just tg <env> <module> plan` | Plan one stack locally. |
+| `just tg-all <env> plan [exclude_dir ...]` | Plan an environment locally, optionally excluding directories. |
 
 The EC2 Bootstrap workflow publishes `:dev` for a fresh deployment. To
 update Backstage, run `just ec2-push-image`; it authenticates to ECR, pushes
@@ -234,14 +224,11 @@ token out of Terraform inputs, state, user data, and logs.
 
 ## Destruction
 
-`just ec2-down` destroys the host, database, IAM role, security groups, ALB,
-ACM certificate, platform DNS records, runtime parameters, and bootstrap
-bucket. ECR is in the CI environment and remains available for rebuilding.
-
-`just ec2-purge` performs the same non-interactive, automatically approved
-dev destroy, then removes the CI ECR repository and its images. Both commands
-permanently delete RDS without a final snapshot. The OIDC role, existing hosted
-zone, and shared Terragrunt state bucket remain.
+The **EC2 Destroy** GitHub Actions workflow destroys the host, database, IAM
+role, security groups, ALB, ACM certificate, platform DNS records, runtime
+parameters, and bootstrap bucket. Select `purge_ecr` to also remove the CI ECR
+repository and images. RDS is permanently deleted without a final snapshot.
+The OIDC role, existing hosted zone, and shared Terragrunt state bucket remain.
 
 ## Cost
 
@@ -262,7 +249,8 @@ Estimated `eu-west-2` cost, checked 16 September 2026:
 The fixed baseline is about `$2.51/day`. It excludes ALB capacity units,
 outbound transfer, request charges, stored images, resources created through
 Crossplane, and T4g surplus CPU credits. Stopping only EC2 still leaves ALB,
-public IPv4, RDS, and EBS charges; use `just ec2-down` to remove the runtime.
+public IPv4, RDS, and EBS charges; use the **EC2 Destroy** workflow to remove
+the runtime.
 
 Pricing sources: [EC2](https://aws.amazon.com/ec2/pricing/on-demand/),
 [EBS](https://aws.amazon.com/ebs/pricing/),

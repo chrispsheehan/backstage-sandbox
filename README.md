@@ -68,27 +68,26 @@ for the expected result.
 
 ## EC2 Setup
 
-After completing the [EC2 prerequisites](infra/README.md#prerequisites) and
-configuring `.env`, publish a commit-tagged image:
+For the AWS lab, configure the GitHub Actions role and environment as described
+in the [EC2 setup guide](infra/README.md#github-actions-oidc-role), then run the
+**EC2 Bootstrap** workflow from the Actions tab. It creates ECR, publishes the
+`dev` image, and applies the dev infrastructure.
+
+To publish a pinned image from your workstation after ECR exists, run:
 
 ```bash
 just ec2-push-image
 ```
 
 Update `k8s/overlays/ec2/backstage/kustomization.yaml` with the image selection
-printed by the command, then commit and push it. Deploy with:
-
-```bash
-just ec2-up
-```
-
-For a GitHub Actions bootstrap using the `dev` image tag, and more detail
-on updating the image, see the [EC2 setup guide](infra/README.md#quick-start).
+printed by the command, then commit and push it. Use the **EC2 Destroy**
+workflow to remove the lab. Local Terragrunt commands are for planning and
+inspection; AWS infrastructure apply and destroy run through GitHub Actions.
+See the [EC2 setup guide](infra/README.md#quick-start) for details.
 
 ## CI Setup
 
-Provision the CI ECR repository and bootstrap the GitHub Actions OIDC role
-locally, then print its ARN:
+Provision the GitHub Actions OIDC role locally, then print its ARN:
 
 ```bash
 just ci-setup
