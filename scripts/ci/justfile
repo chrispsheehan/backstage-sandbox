@@ -57,8 +57,8 @@ _push-image version:
     set -euo pipefail
 
     version="{{ version }}"
-    if [[ ! "${version}" =~ ^[0-9a-f]{7,40}$ ]]; then
-        echo "Version must be a 7-40 character lowercase Git hash." >&2
+    if [[ "${version}" != "bootstrap" && ! "${version}" =~ ^[0-9a-f]{7,40}$ ]]; then
+        echo "Version must be 'bootstrap' or a 7-40 character lowercase Git hash." >&2
         exit 1
     fi
 
@@ -73,9 +73,10 @@ _push-image version:
 
     export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
     export TG_NON_INTERACTIVE=true
-    ecr_stack="{{ CI_PROJECT_DIR }}/infra/live/dev/aws/ecr"
-    terragrunt --working-dir "${ecr_stack}" apply -auto-approve
-    repository_url="$(terragrunt --working-dir "${ecr_stack}" output -raw repository_url)"
+    just --justfile "{{ CI_PROJECT_DIR }}/justfile" \
+      tg dev aws/ecr "apply -auto-approve"
+    repository_url="$(just --justfile "{{ CI_PROJECT_DIR }}/justfile" \
+      tg dev aws/ecr "output -raw repository_url")"
     registry="${repository_url%%/*}"
     aws_region="$(cut -d. -f4 <<<"${registry}")"
     image_uri="${repository_url}:${version}"

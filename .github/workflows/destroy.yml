@@ -1,0 +1,93 @@
+name: EC2 Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type destroy to remove the dev EC2 lab
+        required: true
+        type: choice
+        options:
+          - cancel
+          - destroy
+        default: cancel
+      purge_ecr:
+        description: Also remove ECR and its images
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: ec2-dev-infrastructure
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  destroy:
+    name: Destroy dev infrastructure
+    if: inputs.confirm == 'destroy'
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_INFRA_ROLE_ARN: ${{ vars.AWS_INFRA_ROLE_ARN }}
+      AUTH_GITHUB_CLIENT_ID: ${{ secrets.AUTH_GITHUB_CLIENT_ID }}
+      AUTH_GITHUB_CLIENT_SECRET: ${{ secrets.AUTH_GITHUB_CLIENT_SECRET }}
+      TG_NON_INTERACTIVE: "true"
+      PURGE_ECR: ${{ inputs.purge_ecr }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Just
+        uses: extractions/setup-just@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_INFRA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set AWS account ID
+        shell: bash
+        run: |
+          echo "AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" \
+            >> "${GITHUB_ENV}"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.12.2
+
+      - name: Set up Terragrunt
+        uses: gruntwork-io/terragrunt-action@v3
+        with:
+          tg_version: 1.1.6
+          tf_path: terraform
+
+      - name: Destroy dev stacks
+        shell: bash
+        run: |
+          if [[ "${PURGE_ECR}" == "true" ]]; then
+            just tg-all dev "destroy -auto-approve"
+          else
+            just tg-all dev "destroy -auto-approve" aws/ecr
+          fi
+
+      - name: Write destroy summary
+        shell: bash
+        run: |
+          {
+            echo "## EC2 Destroy Complete"
+            echo
+            echo "- Environment: \`dev\`"
+            if [[ "${PURGE_ECR}" == "true" ]]; then
+              echo "- ECR and its images were removed."
+            else
+              echo "- ECR and its images were retained."
+            fi
+            echo "- Shared Terragrunt state bucket was retained."
+          } >> "${GITHUB_STEP_SUMMARY}"

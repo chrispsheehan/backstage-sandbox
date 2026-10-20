@@ -10,18 +10,22 @@ usage-based charges; see [Cost](#cost).
 
 ## Quick Start
 
-Before deploying, satisfy the [prerequisites](#prerequisites), create the repo
-root `.env`, and configure the shared GitHub OAuth app described in
+For local deployment, satisfy the [prerequisites](#prerequisites), create the
+repo root `.env`, and configure the shared GitHub OAuth app described in
 [GitHub authentication](../k8s/README.md#github-authentication).
 
-Publish the current Backstage image first:
+The **EC2 Bootstrap** GitHub Actions workflow publishes the initial image with
+the `bootstrap` tag, then applies the dev stacks. For a local deployment or to
+update Backstage later, publish the current commit as a pinned image:
 
 ```bash
 just ec2-push-image
 ```
 
-Commit and push the `k8s/overlays/ec2/backstage/kustomization.yaml` image
-selection printed by that command. Then plan and deploy:
+The command prints the image selection for
+`k8s/overlays/ec2/backstage/kustomization.yaml`. Replace its `images` entry
+with that snippet, then commit and push the overlay change. Argo CD will deploy
+the new image. For a local first deployment, plan and apply with:
 
 ```bash
 just tg-all dev plan
@@ -43,7 +47,7 @@ Database deletion is permanent and does not create a final snapshot.
 
 | Resource | Purpose |
 | --- | --- |
-| ECR | Private repository for versioned ARM64 Backstage images. |
+| ECR | Private repository for the bootstrap and commit-tagged ARM64 Backstage images. |
 | IAM role and instance profile | SSM access, bootstrap download, ECR pulls, runtime parameters, and generated-site S3 permissions. |
 | EC2 | One `t4g.medium` Amazon Linux 2023 host with an encrypted 30 GiB gp3 volume, Docker, kubectl, k3d, and an ephemeral public IPv4 address. |
 | ALB, ACM, and Route 53 | Browser-trusted HTTPS and hostname routing for Backstage and Argo CD using the existing `chrispsheehan.com` hosted zone. |
@@ -121,7 +125,7 @@ diagnostics, and manual recovery.
 
 | Command | Purpose |
 | --- | --- |
-| `just ec2-push-image` | Apply ECR, build and push the current commit for ARM64, and print the Kustomize image selection. |
+| `just ec2-push-image` | Apply ECR, push the current commit as an ARM64 image, and print the overlay image selection to commit when updating Backstage. |
 | `just ec2-up` | Apply all dev stacks, follow bootstrap logs, and print platform outputs. |
 | `just ec2-logs` | Follow serial-console bootstrap output until success or failure. |
 | `just ec2-shell` | Open a Session Manager shell as `ec2-user`. |
@@ -131,11 +135,14 @@ diagnostics, and manual recovery.
 | `just tg <env> <module> <op>` | Run one operation against one stack. |
 | `just tg-all <env> <op> [exclude_dir]` | Run an operation across an environment's dependency graph. |
 
-The image version must be a 7–40 character lowercase Git hash. Publishing
-applies the ECR stack, authenticates Docker, pushes
-`<repository-url>:<commit>`, and prints the exact overlay change to commit.
-ECR authorisation tokens expire after 12 hours; the bootstrap runbook explains
-how to refresh an existing host.
+The EC2 Bootstrap workflow publishes `:bootstrap` for a fresh deployment. To
+update Backstage, run `just ec2-push-image`; it authenticates to ECR, pushes
+`<repository-url>:<commit>`, and prints the exact overlay entry to use. Commit
+and push that overlay change for Argo CD to deploy the pinned image. The
+`bootstrap` tag is mutable and is refreshed by the bootstrap workflow; local
+commit tags remain available for reproducible rollouts. ECR authorisation
+tokens expire after 12 hours; the bootstrap runbook explains how to refresh an
+existing host.
 
 ## Access And Authentication
 

@@ -69,19 +69,21 @@ for the expected result.
 ## EC2 Setup
 
 After completing the [EC2 prerequisites](infra/README.md#prerequisites) and
-configuring `.env`, start Docker and run:
+configuring `.env`, publish a commit-tagged image:
 
 ```bash
 just ec2-push-image
 ```
 
-Commit and push the EC2 image selection printed by that command, then deploy:
+Update `k8s/overlays/ec2/backstage/kustomization.yaml` with the image selection
+printed by the command, then commit and push it. Deploy with:
 
 ```bash
 just ec2-up
 ```
 
-See the [EC2 setup guide](infra/README.md#ec2-setup) for details.
+For a GitHub Actions bootstrap using the `bootstrap` image tag, and more detail
+on updating the image, see the [EC2 setup guide](infra/README.md#quick-start).
 
 ## Architecture
 

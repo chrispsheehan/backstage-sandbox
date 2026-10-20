@@ -24,7 +24,7 @@ infra-format:
     terraform fmt -recursive "{{ PROJECT_DIR }}/infra"
     terragrunt hcl fmt --working-dir "{{ PROJECT_DIR }}/infra"
 
-# Build and push a versioned ARM64 Backstage image to the existing ECR repository.
+# Build and push a commit-tagged ARM64 Backstage image to ECR.
 ec2-push-image:
     just --justfile "{{ PROJECT_DIR }}/scripts/ci/justfile" _push-image "$(git rev-parse HEAD)"
 
