@@ -92,23 +92,18 @@ Destroying this environment does not remove the state bucket.
 
 ### GitHub Actions OIDC role
 
-The `dev/aws/github_oidc_role` stack creates the GitHub Actions deployment role.
-The role trusts this repository's `main` branch and the `dev` GitHub Actions
-environment. Its permissions cover the AWS services managed by the dev stacks
-and access to the shared Terraform state bucket. The role stack uses
-[`chrispsheehan/github-oidc-role/aws`](https://registry.terraform.io/modules/chrispsheehan/github-oidc-role/aws/latest),
-pinned to version `1.0.3`.
+The `dev/aws/github_oidc_role` stack creates the deployment role using
+[`chrispsheehan/github-oidc-role/aws` v1.0.3](https://registry.terraform.io/modules/chrispsheehan/github-oidc-role/aws/1.0.3).
+It trusts this repo's `main` branch in the `dev` GitHub environment and grants
+the permissions needed by the dev stacks and shared state bucket.
 
-Before the first apply, create the GitHub Actions OIDC identity provider in IAM
-(`token.actions.githubusercontent.com`) and create the shared state bucket.
-Use local AWS credentials with permission to create the IAM role and its
-policies, manage ECR, and access the state bucket.
+For first-time setup, create the IAM OIDC provider
+(`token.actions.githubusercontent.com`) and shared state bucket. Then run
+`just ci-setup` with local AWS credentials that can create the role and its
+policies. It prints the role ARN for GitHub configuration.
 
-The ECR stack is managed separately under `ci/aws/ecr`. Its repository name is
-`backstage-sandbox`; the registry URI already includes the account ID and
-region. Its Terragrunt state also moves from the old `dev/aws/ecr` key to
-`ci/aws/ecr`. Before applying the moved stack, move the existing state object
-while no Terraform or Terragrunt operation is running:
+If upgrading an existing lab, first move the ECR state from `dev/aws/ecr` to
+`ci/aws/ecr` while no Terraform or Terragrunt operation is running:
 
 ```bash
 export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
@@ -118,35 +113,22 @@ aws s3 mv \
   "s3://${state_bucket}/ci/aws/ecr/terraform.tfstate"
 ```
 
-After the state move, run `just ci-setup` to apply the OIDC role stack locally
-and print the role ARN. For a fresh account with no ECR repository or state to
-migrate, run `just ci-setup` directly. The EC2 Bootstrap workflow creates ECR.
-Changing the repository name
-from the previous `backstage-sandbox-dev` name replaces the old repository;
-with `force_delete` enabled, images in the old repository are removed. Push the
-image again with `just ec2-push-image` before using the EC2 overlay.
+Changing the repository from `backstage-sandbox-dev` to `backstage-sandbox`
+replaces it and deletes its images (`force_delete` is enabled). The Bootstrap
+workflow recreates ECR and publishes `dev`; use `just ec2-push-image` after
+that to publish a pinned image.
 
-Set the output ARN as the GitHub repository variable `AWS_INFRA_ROLE_ARN`, and
-set `AWS_REGION` to the deployment region. Store the Backstage OAuth values as
-repository or `dev` environment secrets named `AUTH_GITHUB_CLIENT_ID` and
-`AUTH_GITHUB_CLIENT_SECRET`. The GitHub workflows pass these secrets to
-Terragrunt through `TF_VAR_backstage_github_client_id` and
-`TF_VAR_backstage_github_client_secret`, and resolve `AWS_ACCOUNT_ID` through
-STS. The workflows call Terragrunt directly. Local `just tg` and `just tg-all`
-commands support planning and inspection; local apply and destroy operations
-are blocked. `just ci-setup` is the one-time local exception for creating the
-OIDC role that authorizes the workflows.
+In GitHub, set repository variable `AWS_INFRA_ROLE_ARN` to the ARN from
+`just ci-setup`, and set `AWS_REGION`. Add `AUTH_GITHUB_CLIENT_ID` and
+`AUTH_GITHUB_CLIENT_SECRET` as repository or `dev` environment secrets. Restrict
+the `dev` environment to `main`; workflows map the OAuth secrets to the
+`TF_VAR_backstage_github_client_*` inputs.
 
-Restrict the `dev` GitHub environment to `main` so only the intended branch can
-assume the infrastructure role. After initial setup, `just tg-all dev plan`
-includes the OIDC role stack. EC2 Bootstrap creates the CI ECR stack and
-publishes the `dev` image. `just ec2-push-image` publishes an image to that
-existing repository. In the
-EC2 Bootstrap workflow, one job provisions ECR and publishes the `dev` image;
-a dependent job then applies the dev infrastructure. The EC2 Destroy workflow
-also handles CI ECR removal in a separate job when `purge_ecr` is selected.
-Both workflows exclude the OIDC role; EC2 Destroy removes ECR only when
-`purge_ecr` is selected.
+The **EC2 Bootstrap** workflow provisions ECR and the `dev` image, then applies
+the dev stacks. **EC2 Destroy** removes the dev stacks and optionally ECR when
+`purge_ecr` is selected. Both retain the OIDC role. Local Terragrunt Just
+commands are for planning and inspection; apply and destroy are handled by
+GitHub Actions. `just ci-setup` is the one-time local role setup.
 
 ## Deployment Model
 
