@@ -93,7 +93,6 @@ Provision the GitHub Actions OIDC role locally, then print its ARN:
 just ci-setup
 ```
 
-For an existing EC2 lab, migrate the ECR state first using the linked guide.
 Add the role ARN and required runner variables and secrets in GitHub. See the
 [CI and OIDC setup details](infra/README.md#github-actions-oidc-role).
 
