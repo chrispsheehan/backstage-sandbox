@@ -50,10 +50,13 @@ _build-backstage-image image mode:
 
     build_image() {
         if [[ "${mode}" == "push" ]]; then
+            cache_image="${image%:*}:buildcache"
             docker buildx build \
               --platform linux/arm64 \
               --target backstage \
               --file "{{ BUILD_PROJECT_DIR }}/Dockerfile" \
+              --cache-from "type=registry,ref=${cache_image}" \
+              --cache-to "type=registry,ref=${cache_image},mode=max" \
               --tag "${image}" \
               --push \
               "{{ BUILD_PROJECT_DIR }}"
