@@ -3,14 +3,6 @@ name: EC2 Destroy
 on:
   workflow_dispatch:
     inputs:
-      confirm:
-        description: Type destroy to remove the dev EC2 lab
-        required: true
-        type: choice
-        options:
-          - cancel
-          - destroy
-        default: cancel
       purge_ecr:
         description: Also remove ECR and its images
         required: true
@@ -28,7 +20,6 @@ permissions:
 jobs:
   destroy:
     name: Destroy dev infrastructure
-    if: inputs.confirm == 'destroy'
     runs-on: ubuntu-latest
     environment: dev
     env:
@@ -91,7 +82,7 @@ jobs:
   destroy-ecr:
     name: Destroy CI ECR
     needs: destroy
-    if: inputs.confirm == 'destroy' && inputs.purge_ecr
+    if: inputs.purge_ecr
     runs-on: ubuntu-latest
     environment: dev
     env:
