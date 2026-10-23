@@ -34,7 +34,9 @@ install:
     if [[ "${created_scaffold}" == "true" ]]; then
         (
             cd "{{ PROJECT_DIR }}/backstage"
-            yarn install
+            # This generated scaffold's lockfile is untracked and may not
+            # include the repo overrides; allow Yarn to resolve it on CI too.
+            yarn install --no-immutable
         )
     fi
     just backstage-verify
