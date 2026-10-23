@@ -2,15 +2,6 @@ name: EC2 Bootstrap
 
 on:
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: Select bootstrap to create the dev EC2 lab
-        required: true
-        type: choice
-        options:
-          - cancel
-          - bootstrap
-        default: cancel
 
 concurrency:
   group: ec2-dev-infrastructure
@@ -23,7 +14,6 @@ permissions:
 jobs:
   publish-image:
     name: Provision CI ECR and publish dev image
-    if: inputs.confirm == 'bootstrap' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: dev
     env:
@@ -92,7 +82,6 @@ jobs:
   bootstrap:
     name: Apply dev infrastructure
     needs: publish-image
-    if: inputs.confirm == 'bootstrap' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: dev
     env:
