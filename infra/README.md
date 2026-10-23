@@ -48,9 +48,15 @@ The bucket must exist before setup and remains after destroy.
 Create the AWS OIDC provider (`token.actions.githubusercontent.com`) and shared
 state bucket first. Then run `just ci-setup` with credentials allowed to create
 the deployment role and policies. Set the printed ARN as GitHub repository
-variable `AWS_INFRA_ROLE_ARN`, set `AWS_REGION`, and add
-`AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` as repository or `dev`
-environment secrets. Restrict `dev` to `main`.
+variable `AWS_INFRA_ROLE_ARN`, then configure these GitHub settings:
+
+| Setting | GitHub location | Value |
+| --- | --- | --- |
+| `AWS_INFRA_ROLE_ARN` | Repository variable | ARN printed by `just ci-setup` |
+| `AWS_REGION` | Repository variable | Deployment region, usually `eu-west-2` |
+| `AUTH_GITHUB_CLIENT_ID` | Repository or `dev` environment secret | OAuth app client ID |
+| `AUTH_GITHUB_CLIENT_SECRET` | Repository or `dev` environment secret | OAuth app client secret |
+| `dev` deployment branch | Environment deployment branches | `main` |
 
 The `dev/aws/github_oidc_role` stack trusts this repository's `main` branch in
 the `dev` environment. The role remains after **EC2 Destroy**. The CI stack
