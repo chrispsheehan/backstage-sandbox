@@ -3,10 +3,10 @@ include "root" {
 }
 
 dependency "ecr" {
-  config_path = "../ecr"
+  config_path = "../../../ci/aws/ecr"
 
   mock_outputs = {
-    repository_arn = "arn:aws:ecr:eu-west-2:000000000000:repository/backstage-sandbox-dev"
+    repository_arn = "arn:aws:ecr:eu-west-2:000000000000:repository/backstage-sandbox"
   }
   mock_outputs_allowed_terraform_commands = ["validate", "plan"]
 }

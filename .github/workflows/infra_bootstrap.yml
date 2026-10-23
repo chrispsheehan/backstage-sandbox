@@ -1,0 +1,145 @@
+name: EC2 Bootstrap
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - github-ci
+
+concurrency:
+  group: ec2-dev-infrastructure
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-image:
+    name: Provision CI ECR and publish dev image
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_INFRA_ROLE_ARN: ${{ vars.AWS_INFRA_ROLE_ARN }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Set up Just
+        uses: extractions/setup-just@v3
+
+      - name: Create and verify Backstage scaffold
+        run: |
+          corepack enable
+          just install
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_INFRA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set AWS account ID
+        shell: bash
+        run: |
+          echo "AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" \
+            >> "${GITHUB_ENV}"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.12.2
+
+      - name: Set up Terragrunt
+        uses: gruntwork-io/terragrunt-action@v3
+        with:
+          tg_version: 1.1.6
+          tf_path: terraform
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Apply ECR stack
+        run: terragrunt --non-interactive --working-dir infra/live/ci/aws/ecr apply -auto-approve
+
+      - name: Publish dev image before EC2 bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository_url="$(terragrunt --working-dir infra/live/ci/aws/ecr output -raw repository_url)"
+          registry="${repository_url%%/*}"
+          aws ecr get-login-password --region "${AWS_REGION}" \
+            | docker login --username AWS --password-stdin "${registry}"
+          just --justfile scripts/build/justfile \
+            _build-backstage-image "${repository_url}:dev" push
+
+  bootstrap:
+    name: Apply dev infrastructure
+    needs: publish-image
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_INFRA_ROLE_ARN: ${{ vars.AWS_INFRA_ROLE_ARN }}
+      TF_VAR_backstage_github_client_id: ${{ secrets.AUTH_GITHUB_CLIENT_ID }}
+      TF_VAR_backstage_github_client_secret: ${{ secrets.AUTH_GITHUB_CLIENT_SECRET }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Just
+        uses: extractions/setup-just@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_INFRA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set AWS account ID
+        shell: bash
+        run: |
+          echo "AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" \
+            >> "${GITHUB_ENV}"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.12.2
+
+      - name: Set up Terragrunt
+        uses: gruntwork-io/terragrunt-action@v3
+        with:
+          tg_version: 1.1.6
+          tf_path: terraform
+
+      - name: Apply all dev stacks
+        working-directory: infra/live/dev
+        run: terragrunt --non-interactive run --all -- apply -auto-approve
+
+      - name: Follow EC2 bootstrap logs
+        run: just ec2-logs
+
+      - name: Print platform URLs
+        working-directory: infra/live/dev/aws/platform_host
+        run: terragrunt output
+
+      - name: Write bootstrap summary
+        shell: bash
+        run: |
+          {
+            echo "## EC2 Bootstrap Complete"
+            echo
+            echo "- Environment: \`dev\`"
+            echo "- Image tag: \`dev\`"
+            echo "- Terraform state bucket was retained."
+          } >> "${GITHUB_STEP_SUMMARY}"

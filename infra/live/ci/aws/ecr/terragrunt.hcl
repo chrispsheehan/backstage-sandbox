@@ -6,3 +6,6 @@ terraform {
   source = "../../../../modules//aws//ecr"
 }
 
+inputs = {
+  base_name = "backstage-sandbox"
+}

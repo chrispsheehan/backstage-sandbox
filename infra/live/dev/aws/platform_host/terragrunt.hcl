@@ -32,10 +32,10 @@ dependency "platform_role" {
 }
 
 dependency "ecr" {
-  config_path = "../ecr"
+  config_path = "../../../ci/aws/ecr"
 
   mock_outputs = {
-    repository_url = "000000000000.dkr.ecr.eu-west-2.amazonaws.com/backstage-sandbox-dev"
+    repository_url = "000000000000.dkr.ecr.eu-west-2.amazonaws.com/backstage-sandbox"
   }
   mock_outputs_allowed_terraform_commands = ["validate", "plan", "destroy"]
 }
@@ -56,7 +56,6 @@ terraform {
 
 inputs = {
   ecr_repository_url              = dependency.ecr.outputs.repository_url
-  hosted_zone_name                = "chrispsheehan.com"
   instance_profile_name           = dependency.platform_role.outputs.instance_profile_name
   load_balancer_security_group_id = dependency.security.outputs.load_balancer_security_group_id
   platform_repo_files             = { for path in local.platform_repo_paths : path => file("${local.repo_root}/${path}") }

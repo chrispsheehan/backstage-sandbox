@@ -1,6 +1,6 @@
 variable "base_name" {
   type        = string
-  description = "Name of the development Backstage image repository."
+  description = "Stable base name of the Backstage image repository."
 }
 
 variable "force_delete" {
