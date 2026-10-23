@@ -54,8 +54,8 @@ variable `AWS_INFRA_ROLE_ARN`, then configure these GitHub settings:
 | --- | --- | --- |
 | `AWS_INFRA_ROLE_ARN` | Repository variable | ARN printed by `just ci-setup` |
 | `AWS_REGION` | Repository variable | Deployment region, usually `eu-west-2` |
-| `AUTH_GITHUB_CLIENT_ID` | Repository or `dev` environment secret | OAuth app client ID |
-| `AUTH_GITHUB_CLIENT_SECRET` | Repository or `dev` environment secret | OAuth app client secret |
+| `AUTH_GITHUB_CLIENT_ID` | GitHub Actions secret (repository or `dev` environment) | OAuth app client ID |
+| `AUTH_GITHUB_CLIENT_SECRET` | GitHub Actions secret (repository or `dev` environment) | OAuth app client secret |
 | `dev` deployment branch | Environment deployment branches | `main` |
 
 The `dev/aws/github_oidc_role` stack trusts this repository's `main` branch in
