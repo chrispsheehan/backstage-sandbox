@@ -2,6 +2,9 @@ name: EC2 Bootstrap
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - github-ci
 
 concurrency:
   group: ec2-dev-infrastructure
