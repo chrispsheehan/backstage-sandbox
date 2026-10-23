@@ -12,7 +12,7 @@ inputs = {
   github_repo      = include.root.locals.github_repo
   state_bucket     = include.root.locals.state_bucket
 
-  deploy_branches     = ["*"]
+  deploy_branches     = ["main"]
   deploy_environments = ["dev"]
 
   allowed_role_actions = [
