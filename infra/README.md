@@ -54,6 +54,7 @@ variable `AWS_INFRA_ROLE_ARN`, then configure these GitHub settings:
 | --- | --- | --- |
 | `AWS_INFRA_ROLE_ARN` | Repository variable | ARN printed by `just ci-setup` |
 | `AWS_REGION` | Repository variable | Deployment region, usually `eu-west-2` |
+| `ALLOWED_IP_RANGE` | `dev` environment variable | IPv4 address or range allowed to reach the ALB on ports 80 and 443 |
 | `AUTH_GITHUB_CLIENT_ID` | GitHub Actions secret (repository or `dev` environment) | OAuth app client ID |
 | `AUTH_GITHUB_CLIENT_SECRET` | GitHub Actions secret (repository or `dev` environment) | OAuth app client secret |
 | `dev` deployment branch | Environment deployment branches | `main` |
@@ -62,6 +63,20 @@ The `dev/aws/github_oidc_role` stack trusts this repository's `main` branch in
 the `dev` environment. The role remains after **EC2 Destroy**. The CI stack
 owns ECR; changing its repository name replaces the repository and deletes its
 images (`force_delete` is enabled).
+
+Set `ALLOWED_IP_RANGE` in **Settings → Environments → dev → Environment
+variables**. Run `just get-ip` and copy its output (for example,
+`203.0.113.10/32`) to allow your current public IPv4 address. To allow all
+IPv4 addresses, use:
+
+```text
+0.0.0.0/0
+```
+
+This makes the ALB publicly reachable on ports 80 and 443. Enter the chosen
+value as `ALLOWED_IP_RANGE`, then rerun **EC2 Bootstrap** to update the security
+group. If your ISP or VPN changes your address, run `just get-ip` again and
+update the variable.
 
 ## Operations
 
@@ -86,9 +101,8 @@ recovery. Resource implementation details are in the READMEs under
 The host outputs `https://backstage.chrispsheehan.com` and
 `https://argocd.chrispsheehan.com`; retrieve them with
 `just tg dev aws/platform_host output`. The ALB terminates HTTPS and accepts
-traffic only from the Terraform caller's current public `/32`. Reapply the
-security stack if that address changes. EC2 has no SSH ingress; administer it
-with `just ec2-shell`.
+traffic from the range in `ALLOWED_IP_RANGE`. EC2 has no SSH ingress;
+administer it with `just ec2-shell`.
 
 Argo CD uses GitHub login, with admin access for authenticated GitHub users in
 this disposable lab. Configure its and Backstage's OAuth callbacks before

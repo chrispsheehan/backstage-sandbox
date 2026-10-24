@@ -5,6 +5,10 @@ import 'scripts/build/justfile'
 default:
     @just --list
 
+# Print the current public IPv4 address as a /32 CIDR for ALLOWED_IP_RANGE.
+get-ip:
+    @printf '%s/32\n' "$(curl -4fsS https://checkip.amazonaws.com)"
+
 # Bootstrap local k3d and Argo CD, then register Crossplane without deploying Backstage.
 local-setup:
     just --justfile "{{ PROJECT_DIR }}/scripts/local/justfile" _bootstrap-cluster

@@ -25,6 +25,7 @@ jobs:
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_INFRA_ROLE_ARN: ${{ vars.AWS_INFRA_ROLE_ARN }}
+      TF_VAR_allowed_ip_range: ${{ vars.ALLOWED_IP_RANGE }}
       TF_VAR_backstage_github_client_id: ${{ secrets.AUTH_GITHUB_CLIENT_ID }}
       TF_VAR_backstage_github_client_secret: ${{ secrets.AUTH_GITHUB_CLIENT_SECRET }}
       PURGE_ECR: ${{ inputs.purge_ecr }}

@@ -4,7 +4,7 @@ output "platform_security_group_id" {
 }
 
 output "load_balancer_security_group_id" {
-  description = "Security group restricting public ALB access to the current caller."
+  description = "Security group restricting public ALB access to the configured client CIDR."
   value       = aws_security_group.load_balancer.id
 }
 

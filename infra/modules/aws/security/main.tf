@@ -18,19 +18,19 @@ resource "aws_security_group" "load_balancer" {
   vpc_id      = data.aws_vpc.this.id
 
   ingress {
-    description = "HTTP redirect from the Terraform caller"
+    description = "HTTP redirect from the configured client CIDR"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [local.caller_ipv4_cidr]
+    cidr_blocks = [var.allowed_ip_range]
   }
 
   ingress {
-    description = "HTTPS from the Terraform caller"
+    description = "HTTPS from the configured client CIDR"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = [local.caller_ipv4_cidr]
+    cidr_blocks = [var.allowed_ip_range]
   }
 
   egress {
