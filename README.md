@@ -112,19 +112,63 @@ loaded; the control plane can run without it. The optional EC2 lab uses its
 attached instance role instead. See [crossplane/README.md](crossplane/README.md)
 for both profiles.
 
-## Common Commands
+## Command Reference
+
+Use these public recipes from the repository root. `just --list` shows the same
+recipes with their inline descriptions.
+
+### Start and prepare
 
 | Command | Purpose |
 | --- | --- |
-| `just local-up` | Start the complete lab and both UI port-forwards. |
-| `just local-setup` | Bootstrap k3d, Argo CD, and Crossplane without Backstage. |
-| `just backstage-verify` | Check that the ignored scaffold matches the tracked overrides. |
-| `just local-deploy-backstage` | Refresh the Backstage deployment without recreating the cluster. |
-| `just local-crossplane-aws-auth ~/.aws/credentials` | Give local Crossplane AWS credentials. |
-| `just local-stop` | Stop the cluster without deleting it. |
+| `just install` | Create the pinned Backstage scaffold if needed, then apply and verify repo overrides. |
+| `just local-up` | Start the complete lab, deploy Backstage, and open both UI port-forwards. |
+| `just local-setup` | Start k3d, Argo CD, and Crossplane without deploying Backstage. |
+
+### Refresh or repair
+
+| Command | Purpose |
+| --- | --- |
+| `just backstage-replay` | Reapply tracked overrides to the ignored Backstage scaffold. |
+| `just backstage-verify` | Check the scaffold against tracked overrides without changing it. |
+| `just local-build-backstage-image` | Build Backstage and load its image into the running local cluster. |
+| `just local-deploy-backstage` | Apply or refresh Backstage without recreating the cluster. |
+| `just local-crossplane-aws-auth <credentials-file>` | Load AWS credentials for local Crossplane, for example `~/.aws/credentials`. |
+| `just local-argocd-github-auth` | Refresh local Argo CD GitHub SSO from the root `.env`. |
+| `just local-argocd-repo-auth` | Refresh Argo CD credentials for this Git repository. |
+| `just local-backstage-auth` | Refresh the in-cluster Backstage OAuth Secret from the root `.env`. |
+
+### Access and inspect
+
+| Command | Purpose |
+| --- | --- |
+| `just local-ensure-argocd-port-forward` | Start or repair the local Argo CD port-forward. |
+| `just local-ensure-backstage-port-forward` | Start or repair the local Backstage port-forward. |
+| `just get-ip` | Print the current public IPv4 address as a `/32` CIDR for `ALLOWED_IP_RANGE`. |
+
+### Stop or remove the local lab
+
+| Command | Purpose |
+| --- | --- |
+| `just local-stop-forwards` | Stop both UI port-forwards while keeping k3d running. |
+| `just local-stop` | Stop the k3d cluster without deleting it. |
+| `just local-clean` | Stop port-forwards and remove the local Backstage image, keeping k3d. |
 | `just local-down` | Delete the cluster, port-forwards, lab state, and local image. |
 
-Run `just --list` for the complete command reference.
+### AWS and infrastructure
+
+| Command | Purpose |
+| --- | --- |
+| `just ci-setup` | Provision the GitHub Actions OIDC role locally and print its ARN. |
+| `just ec2-push-image` | Build and push a commit-tagged ARM64 Backstage image to ECR. |
+| `just ec2-shell` | Open an AWS Systems Manager shell on the dev platform workstation. |
+| `just ec2-logs` | Follow EC2 user-data output during bootstrap. |
+| `just tg <env> <module> <op>` | Run one Terragrunt operation for an environment and AWS stack. |
+| `just tg-all <env> <op> [exclude-dirs...]` | Run a Terragrunt operation across an environment, optionally excluding directories. |
+| `just infra-format` | Format Terraform and Terragrunt files. |
+
+The `tg` recipes support inspection and planning; infrastructure apply and
+destroy run through GitHub Actions. See [infra/README.md](infra/README.md).
 
 ## Documentation
 
