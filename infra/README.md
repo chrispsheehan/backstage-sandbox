@@ -9,8 +9,8 @@ about **$76/month** before usage charges; see [Cost](#cost).
 Complete [OIDC setup](#github-actions-oidc-role) and configure the shared
 GitHub OAuth app as described in
 [GitHub authentication](../k8s/README.md#github-authentication). Dispatch
-**EC2 Bootstrap** on `main` with `bootstrap` selected. It creates ECR, publishes
-the initial `dev` image, and applies the dev stacks.
+**EC2 Bootstrap** from branch `main`. The workflow has no inputs. It creates
+ECR, publishes the initial `dev` image, and applies the dev stacks.
 
 To update Backstage, run `just ec2-push-image`, copy its image selection into
 `k8s/overlays/ec2/backstage/kustomization.yaml`, then commit and push. Argo CD

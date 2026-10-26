@@ -6,6 +6,7 @@ the normal workflow.
 
 For an interactive guide to setup choices, first-run steps, or troubleshooting,
 use the repo skill [platform-lab-guide](.agents/skills/platform-lab-guide/SKILL.md).
+For example: “Use `$platform-lab-guide` to walk me through setting up the EC2 lab.”
 
 The default lab runs on Docker. An optional dev-only AWS deployment runs the
 same platform on EC2 with an ALB and RDS; see
