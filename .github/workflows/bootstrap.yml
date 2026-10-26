@@ -12,13 +12,9 @@ permissions:
   id-token: write
 
 jobs:
-  publish-image:
-    name: Provision CI ECR and publish dev image
+  build-image:
+    name: Build image
     runs-on: ubuntu-24.04-arm
-    environment: dev
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      AWS_INFRA_ROLE_ARN: ${{ vars.AWS_INFRA_ROLE_ARN }}
     steps:
       - name: Check out source
         uses: actions/checkout@v6
@@ -35,6 +31,36 @@ jobs:
         run: |
           corepack enable
           just install
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build local Backstage image
+        run: just --justfile scripts/build/justfile _build-backstage-image backstage:dev local
+
+      - name: Save image
+        run: docker save --output /tmp/backstage-image.tar backstage:dev
+
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: backstage-image
+          path: /tmp/backstage-image.tar
+          if-no-files-found: error
+          compression-level: 0
+
+  prepare-ecr:
+    name: Prepare ECR
+    runs-on: ubuntu-latest
+    environment: dev
+    outputs:
+      repository_url: ${{ steps.ecr.outputs.repository_url }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_INFRA_ROLE_ARN: ${{ vars.AWS_INFRA_ROLE_ARN }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -59,26 +85,20 @@ jobs:
           tg_version: 1.1.6
           tf_path: terraform
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Apply ECR stack
         run: terragrunt --non-interactive --working-dir infra/live/ci/aws/ecr apply -auto-approve
 
-      - name: Publish dev image before EC2 bootstrap
+      - name: Get ECR repository URL
+        id: ecr
         shell: bash
         run: |
           set -euo pipefail
-          repository_url="$(terragrunt --working-dir infra/live/ci/aws/ecr output -raw repository_url)"
-          registry="${repository_url%%/*}"
-          aws ecr get-login-password --region "${AWS_REGION}" \
-            | docker login --username AWS --password-stdin "${registry}"
-          just --justfile scripts/build/justfile \
-            _build-backstage-image "${repository_url}:dev" push
+          echo "repository_url=$(terragrunt --working-dir infra/live/ci/aws/ecr output -raw repository_url)" \
+            >> "${GITHUB_OUTPUT}"
 
-  bootstrap:
-    name: Apply dev infrastructure
-    needs: publish-image
+  deploy:
+    name: Deploy
+    needs: [build-image, prepare-ecr]
     runs-on: ubuntu-latest
     environment: dev
     env:
@@ -99,6 +119,25 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_INFRA_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download image
+        uses: actions/download-artifact@v4
+        with:
+          name: backstage-image
+          path: /tmp/backstage-image
+
+      - name: Load and push image to ECR
+        shell: bash
+        env:
+          REPOSITORY_URL: ${{ needs.prepare-ecr.outputs.repository_url }}
+        run: |
+          set -euo pipefail
+          docker load --input /tmp/backstage-image/backstage-image.tar
+          registry="${REPOSITORY_URL%%/*}"
+          aws ecr get-login-password --region "${AWS_REGION}" \
+            | docker login --username AWS --password-stdin "${registry}"
+          docker tag backstage:dev "${REPOSITORY_URL}:dev"
+          docker push "${REPOSITORY_URL}:dev"
 
       - name: Set AWS account ID
         shell: bash
