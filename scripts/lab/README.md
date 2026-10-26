@@ -30,6 +30,10 @@ separate local and EC2 implementations.
 | `ARGOCD_HTTPS_HOST_PORT` | Unset | `30443` |
 | `BACKSTAGE_HTTP_HOST_PORT` | Unset | `30070` |
 
+Before calling k3d, the script confirms that Docker is installed and its daemon
+is reachable. For local runs, start Docker Desktop and retry `just local-up` or
+`just local-setup` if that check fails.
+
 The script also handles two local recovery cases:
 
 - It starts an existing stopped `platform-lab` cluster.

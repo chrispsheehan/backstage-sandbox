@@ -14,12 +14,21 @@ if [[ "${platform_environment}" != "local" && "${platform_environment}" != "ec2"
   exit 1
 fi
 
-for bin in kubectl k3d; do
+for bin in docker kubectl k3d; do
   command -v "${bin}" >/dev/null 2>&1 || {
     echo "Missing required binary: ${bin}" >&2
     exit 1
   }
 done
+
+if ! docker info >/dev/null 2>&1; then
+  if [[ "${platform_environment}" == "local" ]]; then
+    echo "Docker is unavailable. Start Docker Desktop, then retry 'just local-up' or 'just local-setup'." >&2
+  else
+    echo "Docker is unavailable. Check that the Docker service is running and this user can access it." >&2
+  fi
+  exit 1
+fi
 
 if ! k3d cluster list | awk 'NR > 1 { print $1 }' | grep -qx "${cluster_name}"; then
   if [[ ! "${platform_host_bind_address}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
