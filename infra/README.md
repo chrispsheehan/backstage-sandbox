@@ -25,11 +25,13 @@ a final snapshot.
 - AWS credentials for `just ci-setup`, local plans, and optional image publishing
 - Repo-root `.env` values `AUTH_GITHUB_CLIENT_ID` and
   `AUTH_GITHUB_CLIENT_SECRET` for local plans
-- An existing shared state bucket, VPC, public subnets, and public
-  `chrispsheehan.com` hosted zone
+- An existing shared state bucket, VPC, public subnets, and public Route 53
+  hosted zone for the domain you want to use
 
-Set `vpc_name` and `hosted_zone_name` in `live/global_vars.hcl`. The VPC must
-have DNS resolution enabled. At least two public subnets in distinct
+Set `vpc_name` and `hosted_zone_name` in `live/global_vars.hcl`. The hosted
+zone must exist in the deployment AWS account; the platform creates DNS records
+and certificates for `backstage.<zone>` and `argocd.<zone>`. The VPC must have
+DNS resolution enabled. At least two public subnets in distinct
 availability zones must have `Name` tags containing `public` and a default
 route to an internet gateway. Terraform uses the lexically first matching
 subnet for EC2; the ALB and RDS subnet group span all matches. RDS remains
@@ -98,8 +100,8 @@ recovery. Resource implementation details are in the READMEs under
 
 ## Access and Security
 
-The host outputs `https://backstage.chrispsheehan.com` and
-`https://argocd.chrispsheehan.com`; retrieve them with
+The host outputs `https://backstage.<zone>` and `https://argocd.<zone>`, using
+the configured `hosted_zone_name`; retrieve them with
 `just tg dev aws/platform_host output`. The ALB terminates HTTPS and accepts
 traffic from the range in `ALLOWED_IP_RANGE`. EC2 has no SSH ingress;
 administer it with `just ec2-shell`.

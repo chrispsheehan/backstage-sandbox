@@ -10,7 +10,7 @@ module consumes security groups from `security` and the instance profile from
 | --- | --- |
 | EC2 host | Single-node ARM64 host running Docker, k3d, Argo CD, Crossplane, and Backstage. |
 | Application Load Balancer | Internet-facing HTTPS listener with hostname routing for Backstage and Argo CD. |
-| ACM and Route 53 | Certificate and alias records in the existing `chrispsheehan.com` hosted zone. |
+| ACM and Route 53 | Certificate and alias records in the existing hosted zone named by `hosted_zone_name`. |
 | Bootstrap bucket | Private encrypted bucket containing the startup archive; `force_destroy` is enabled. |
 | SSM parameters | Randomised path containing the Backstage backend secret and GitHub OAuth values. |
 | Session document | Opens `just ec2-shell` directly as `ec2-user`. |
@@ -22,8 +22,8 @@ The module discovers the VPC by exact `Name` tag, public subnets by a
 
 | Route | Target |
 | --- | --- |
-| `backstage.chrispsheehan.com` | ALB → host port 30070 → Backstage NodePort |
-| `argocd.chrispsheehan.com` | ALB → host port 30443 → Argo CD HTTPS NodePort |
+| `backstage.<hosted_zone_name>` | ALB → host port 30070 → Backstage NodePort |
+| `argocd.<hosted_zone_name>` | ALB → host port 30443 → Argo CD HTTPS NodePort |
 
 The platform security group accepts both host ports only from the ALB security
 group. Bootstrap verifies both services locally before the host is considered

@@ -35,10 +35,11 @@ that file.
 
 ## Domain And Network
 
-Set `hosted_zone_name` in
-`infra/live/dev/aws/platform_host/terragrunt.hcl`. The EC2 deployment derives
-`backstage.<zone>` and `argocd.<zone>` from it. The public Route 53 zone must
-already exist.
+Set `hosted_zone_name` in `infra/live/global_vars.hcl` to the name of your
+existing public Route 53 hosted zone (for example, `example.com`). The dev
+platform-host stack inherits this value and derives `backstage.<zone>` and
+`argocd.<zone>` from it. The hosted zone must already exist in the deployment
+AWS account.
 
 Set the existing VPC name and AWS region in `infra/live/global_vars.hcl`. The
 VPC, public subnets, state bucket, and permissions must satisfy the
