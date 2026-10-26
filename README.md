@@ -4,6 +4,9 @@ A local-first platform lab built with `k3d`, Argo CD, Crossplane, and
 Backstage. The environment is disposable by design: rebuilding from scratch is
 the normal workflow.
 
+For an interactive guide to setup choices, first-run steps, or troubleshooting,
+use the repo skill [platform-lab-guide](.agents/skills/platform-lab-guide/SKILL.md).
+
 The default lab runs on Docker. An optional dev-only AWS deployment runs the
 same platform on EC2 with an ALB and RDS; see
 [infra/README.md](infra/README.md) for its architecture, prerequisites, cost,
