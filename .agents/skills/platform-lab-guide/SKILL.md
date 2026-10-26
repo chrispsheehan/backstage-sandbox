@@ -18,6 +18,9 @@ recipes as the source of truth.
   and needs. Distinguish required GitHub CLI repository access, GitHub OAuth
   for UI sign-in, Node for scaffold installation, and AWS credentials for
   Crossplane managed resources; do not imply all are required for every path.
+- When users need to enable the EC2 GitHub Actions workflows, follow
+  [references/ec2-oidc-setup.md](references/ec2-oidc-setup.md) as a step-through
+  guide for the AWS OIDC role and GitHub `dev` environment configuration.
 - For troubleshooting, start from the reported symptom and identify the
   narrowest relevant recovery steps. State what each command changes before
   recommending it when that is not obvious.
