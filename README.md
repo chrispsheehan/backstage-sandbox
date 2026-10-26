@@ -50,6 +50,36 @@ Crossplane, deploys Backstage, and starts both port-forwards:
 - Argo CD: <http://localhost:8080>
 - Backstage: <http://localhost:7007>
 
+### Check that the lab is ready
+
+After `just local-up` completes, check the cluster and the main Argo CD
+applications:
+
+```bash
+kubectl get nodes
+kubectl -n argocd get applications
+kubectl -n backstage rollout status deployment/backstage --timeout=300s
+```
+
+The node should show `Ready`; the `crossplane-root`, `crossplane-core`,
+`crossplane-providers`, `crossplane-config`, and `backstage` applications
+should become `Healthy` and `Synced`. The rollout command should report that
+Backstage successfully rolled out. Then open both URLs above and confirm their
+pages load.
+
+Crossplane providers install even when AWS credentials are absent. Check their
+installation separately:
+
+```bash
+kubectl get providers.pkg.crossplane.io
+```
+
+Each provider should show `INSTALLED=True` and `HEALTHY=True`. Local AWS access
+is optional; when needed, load credentials with
+`just local-crossplane-aws-auth <credentials-file>`. Provider health alone does
+not verify AWS authentication; that is exercised when an AWS managed resource
+reconciles. See [Crossplane provider verification](crossplane/README.md#verify-provider-installation).
+
 To retrieve the optional Argo CD bootstrap password, use username `admin` and
 run:
 
